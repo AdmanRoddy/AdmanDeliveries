@@ -410,7 +410,7 @@ pre.sql{background:var(--navy);color:#cfe0f0;font-family:'IBM Plex Mono';font-si
 
 <script>
 /* ================= config ================= */
-const CONFIG={SUPABASE_URL:'https://xjprxkgvptvbiwytcbyg.supabase.co',SUPABASE_ANON_KEY:'sb_publishable_eCN-P7RNPWq8kCMTcUQarw_woBE7vKt'};
+const CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:''};
 const DEPOT_DEFAULT='2311 E 28th St, Chattanooga, TN 37407';
 const UPSERT_MS=20000, MOVE_M=25, STALE_MS=120000;
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
@@ -522,7 +522,11 @@ grant execute on function public.my_role(), public.my_driver() to authenticated;
 
 /* ================= boot ================= */
 function todayStr(){return new Date().toISOString().slice(0,10);}
-let profile=null, authedUser=null, inited=false, authMode='signin';
+let profile=null, authedUser=null, inited=false, authMode='signin', myPerms=[];
+// each page (view) maps to a permission key the admin can grant/deny
+const VIEW_PERM={vIntake:'add_delivery',vRoutines:'routines',vBoard:'schedule_board',vMap:'live_map',vDrive:'drive',vRoster:'roster',vTeam:'user_management'};
+const ALL_PERMS=Object.values(VIEW_PERM);
+// fallback tab sets (only used if the permission lookup can't be reached)
 const ROLE_TABS={
   admin:['vIntake','vRoutines','vBoard','vMap','vDrive','vRoster','vTeam'],
   warehouse_manager:['vIntake','vRoutines','vBoard','vMap','vRoster'],
@@ -530,7 +534,7 @@ const ROLE_TABS={
   pm:['vIntake','vRoutines','vBoard','vMap'],
   foreman:['vIntake','vMap'],
   driver:['vDrive'],
-  employee:['vIntake','vMap']
+  employee:[]
 };
 function boot(){
   ['#bDate','#drvDate','#iDate','#liveDate'].forEach(id=>$(id).value=todayStr());
@@ -560,6 +564,7 @@ async function afterLogin(session){
   if(authedUser===uid && inited){ return; }
   authedUser=uid;
   await loadProfile(uid, session.user);
+  await loadMyPerms();
   $('#signOut').style.display='';
   const st=(profile&&profile.status)||'pending';
   if(st!=='approved'){ showPending(st); return; }   // only approved users get in
@@ -581,13 +586,25 @@ async function loadProfile(uid,user){
   me=profile.name||me;
   $('#whoTag').textContent=(profile.name||'')+' · '+(profile.role||'');
 }
+async function loadMyPerms(){
+  const role=(profile&&profile.role)||'employee';
+  if(role==='admin'){ myPerms=ALL_PERMS.slice(); return; }   // admin always sees everything
+  try{
+    const {data,error}=await sb.rpc('my_permissions');
+    if(error) throw error;
+    myPerms=Array.isArray(data)?data:[];
+  }catch(e){
+    // couldn't reach the permission function — fall back to role defaults so the app still works
+    myPerms=(ROLE_TABS[role]||[]).map(v=>VIEW_PERM[v]);
+  }
+}
 function applyRole(){
-  const role=(profile&&profile.role)||'pm';
-  const allowed=ROLE_TABS[role]||ROLE_TABS.pm;
+  const role=(profile&&profile.role)||'employee';
   $('#nav').style.display='flex';
   let first=null;
   $('#nav').querySelectorAll('button').forEach(b=>{
-    const ok=allowed.includes(b.dataset.v);
+    const perm=VIEW_PERM[b.dataset.v];
+    const ok=(role==='admin')?true:myPerms.includes(perm);
     b.style.display=ok?'':'none'; b.classList.remove('on');
     if(ok&&!first)first=b;
   });
@@ -595,6 +612,12 @@ function applyRole(){
     if(first.dataset.v==='vBoard')renderBoard();
     if(first.dataset.v==='vDrive')renderRun();
     if(first.dataset.v==='vRoutines')renderTemplates();
+  } else {
+    // approved but granted no pages yet — tell them instead of showing a blank screen
+    $('#nav').style.display='none';
+    $('#pendMsg').textContent='You’re approved, but no pages have been turned on for you yet. Your admin can grant access under User Management.';
+    $('#pendWho').textContent=(profile&&profile.name)||'';
+    showView('vPending');
   }
   if(profile&&profile.driver_id){ const s=$('#drvPick'); if(s&&[...s.options].some(o=>o.value===profile.driver_id)){s.value=profile.driver_id; ls('adman_driver_id',profile.driver_id);} }
 }
@@ -680,13 +703,38 @@ async function fnErr(e){
 async function renderTeam(){
   fillNuRole();
   const box=$('#teamList'); if(!box)return;
-  const {data,error}=await sb.from('profiles').select('*').order('created_at');
-  if(error){box.innerHTML='<div class="hint">Couldn’t load users — admin only.</div>';return;}
+  // load users + the permission tables together
+  const [profRes,permRes,rpRes,upRes]=await Promise.all([
+    sb.from('profiles').select('*').order('created_at'),
+    sb.from('permissions').select('*'),
+    sb.from('role_permissions').select('*'),
+    sb.from('user_permissions').select('*')
+  ]);
+  if(profRes.error){box.innerHTML='<div class="hint">Couldn’t load users — admin only.</div>';return;}
+  const perms=(permRes.data||[]);
+  const permById={}; perms.forEach(p=>permById[p.id]=p);
+  const permByKey={}; perms.forEach(p=>permByKey[p.key]=p);
+  const orderedPerms=ALL_PERMS.map(k=>permByKey[k]).filter(Boolean);
+  const roleAllow={}; (rpRes.data||[]).forEach(r=>{ if(r.allowed){ (roleAllow[r.role]=roleAllow[r.role]||new Set()).add(r.permission_id);} });
+  const userOv={}; (upRes.data||[]).forEach(u=>{ (userOv[u.user_id]=userOv[u.user_id]||{})[u.permission_id]=u.allowed; });
+  const effective=(p,permId)=>{
+    if(p.role==='admin') return true;
+    const ov=userOv[p.id]&&userOv[p.id][permId];
+    if(ov!==undefined) return ov;
+    return !!(roleAllow[p.role]&&roleAllow[p.role].has(permId));
+  };
   box.innerHTML='';
-  (data||[]).forEach(p=>{
+  (profRes.data||[]).forEach(p=>{
     const el=document.createElement('div');el.className='dcard';
     const stTag={approved:'st-delivered',pending:'st-scheduled',suspended:'st-out'}[p.status]||'st-unscheduled';
+    const accessRows = (p.role==='admin')
+      ? '<div class="hint" style="margin-top:8px">Admin sees every page.</div>'
+      : `<div class="hint" style="margin-top:10px;margin-bottom:4px">Pages this person can see:</div>
+         <div style="display:flex;flex-wrap:wrap;gap:10px">${orderedPerms.map(pm=>
+           `<label class="lmtoggle" style="font-size:13px"><input type="checkbox" data-perm="${pm.id}"${effective(p,pm.id)?' checked':''}> ${esc(pm.name)}</label>`).join('')}</div>
+         <div style="margin-top:6px"><button class="mini" data-access-reset>Reset to role default</button></div>`;
     el.innerHTML=`<div class="job">${esc(p.name||'—')} <span class="tag ${stTag}">${p.status||'—'}</span>${p.id===authedUser?' <span class="tag st-scheduled">you</span>':''}</div>
+      <div class="hint" style="margin-top:2px">${esc(p.email||'')}</div>
       <div class="foot" style="gap:8px;flex-wrap:wrap;margin-top:6px">
         <select class="mini" data-role>${ALL_ROLES.map(r=>`<option value="${r}"${p.role===r?' selected':''}>${r}</option>`).join('')}</select>
         <select class="mini" data-truck><option value="">— no truck —</option>${drivers.map(d=>`<option value="${d.id}"${p.driver_id===d.id?' selected':''}>${esc(d.name)}</option>`).join('')}</select>
@@ -696,6 +744,7 @@ async function renderTeam(){
         ${p.status==='suspended'?'<button class="mini" data-reactivate>Reactivate</button>':''}
         <button class="mini" data-reset>Reset PW</button>
       </div>
+      ${accessRows}
       <div class="hint" data-pw style="margin-top:6px;display:none"></div>`;
     const roleSel=el.querySelector('[data-role]');
     const linkTruck=async()=>{ const driver_id=el.querySelector('[data-truck]').value||null; await sb.from('profiles').update({driver_id}).eq('id',p.id); };
@@ -704,6 +753,17 @@ async function renderTeam(){
     el.querySelector('[data-role-save]').onclick=()=>rpcUser('change_user_role',{target_user:p.id,new_role:roleSel.value},p.id);
     const su=el.querySelector('[data-suspend]'); if(su) su.onclick=()=>rpcUser('suspend_user',{target_user:p.id});
     const re=el.querySelector('[data-reactivate]'); if(re) re.onclick=()=>rpcUser('reactivate_user',{target_user:p.id,new_role:roleSel.value});
+    el.querySelectorAll('[data-perm]').forEach(cb=>{ cb.onchange=async()=>{
+      const permission_id=cb.getAttribute('data-perm');
+      const {error}=await sb.from('user_permissions').upsert({user_id:p.id,permission_id,allowed:cb.checked},{onConflict:'user_id,permission_id'});
+      if(error){alert('Save failed: '+error.message); cb.checked=!cb.checked; return;}
+      if(p.id===authedUser){ await loadMyPerms(); applyRole(); }
+    };});
+    const arst=el.querySelector('[data-access-reset]'); if(arst) arst.onclick=async()=>{
+      if(!confirm('Reset '+(p.name||'this user')+' back to their role’s default pages?'))return;
+      await sb.from('user_permissions').delete().eq('user_id',p.id);
+      renderTeam();
+    };
     el.querySelector('[data-reset]').onclick=async()=>{
       if(!confirm('Reset password for '+(p.name||'this user')+'? A new temp password will be generated.'))return;
       const pw=el.querySelector('[data-pw]');pw.style.display='block';pw.textContent='Resetting…';
