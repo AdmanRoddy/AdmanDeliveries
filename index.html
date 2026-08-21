@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adman Prefab · Operations Hub</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root{
+  --navy:#0b2339; --red:#bd1d23; --bg:#f4f5f7; --card:#fff;
+  --ink:#0b2339; --muted:#5b6b7a; --line:#e2e6ea; --navy-2:#132f4c;
+  --ok:#1f7a4d; --warn:#b06a00; --grey:#8a97a3; --stale:#9aa6b1;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Inter',system-ui,sans-serif;-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:'Barlow Semi Condensed',sans-serif;margin:0;letter-spacing:.01em}
+.mono{font-family:'IBM Plex Mono',monospace}
+button{font-family:'Inter',sans-serif;cursor:pointer}
+
+header{background:var(--navy);color:#fff;position:sticky;top:0;z-index:1200}
+.hbar{display:flex;align-items:center;gap:12px;padding:11px 16px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand img{height:34px;display:block;background:#fff;padding:5px 9px;border-radius:7px}
+.brand .hubtag{font-family:'IBM Plex Mono';font-weight:600;font-size:10px;letter-spacing:.16em;color:#9fb3c8;text-transform:uppercase}
+.brand .bar{width:4px;height:18px;background:var(--red);margin:0 8px;transform:skewX(-12deg)}
+.brand small{font-weight:600;font-size:10px;letter-spacing:.18em;color:#9fb3c8;text-transform:uppercase}
+.who{margin-left:auto;font-family:'IBM Plex Mono';font-size:11px;color:#9fb3c8}
+.gear{background:none;border:1px solid #2b4763;color:#9fb3c8;border-radius:7px;padding:6px 10px;font-size:12px}
+.gear:hover{color:#fff}
+nav{display:flex;gap:4px;padding:0 12px 10px;overflow-x:auto}
+nav button{background:none;border:none;color:#9fb3c8;padding:8px 14px;border-radius:7px;font-weight:600;font-size:13px;white-space:nowrap}
+nav button.on{background:var(--red);color:#fff}
+nav button:hover:not(.on){background:#0e2b45;color:#fff}
+
+.view{display:none}.view.on{display:block}
+.wrap{max-width:1240px;margin:0 auto;padding:16px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.card+.card{margin-top:14px}
+.sec-h{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.sec-h .num{font-family:'IBM Plex Mono';font-weight:600;font-size:12px;color:#fff;background:var(--navy);padding:3px 7px;border-radius:4px}
+.sec-h .num em{color:var(--red);font-style:normal}
+.sec-h h2{font-size:15px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.sec-body{padding:14px}
+
+label{display:block;font-family:'IBM Plex Mono';font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 5px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-family:'Inter';font-size:14px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);outline-offset:-1px;border-color:var(--navy)}
+.field{margin-bottom:11px}
+.row{display:flex;gap:10px}.row>*{flex:1}
+
+.btn{border:1px solid var(--navy);background:var(--navy);color:#fff;padding:9px 12px;border-radius:7px;font-weight:600;font-size:13px}
+.btn:hover{background:var(--navy-2)}
+.btn.red{background:var(--red);border-color:var(--red)}
+.btn.ghost{background:#fff;color:var(--navy)}.btn.ghost:hover{background:#f0f3f6}
+.btn.sm{padding:6px 9px;font-size:12px}
+.btn.big{width:100%;padding:15px;font-size:16px;border-radius:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btnbar{display:flex;gap:8px;flex-wrap:wrap}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.note{background:#f0f3f6;border:1px solid var(--line);border-radius:8px;padding:11px;font-size:12.5px;color:var(--muted);line-height:1.55}
+.hint{font-size:12px;color:var(--muted);line-height:1.5}
+
+/* board */
+.board{display:grid;grid-template-columns:320px 1fr;gap:14px}
+@media(max-width:820px){.board{grid-template-columns:1fr}}
+.lanes{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px}
+.lane{flex:0 0 270px;background:#eef1f4;border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;max-height:72vh}
+.lane-h{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.lane-h .c{width:12px;height:12px;border-radius:50%}
+.lane-h .nm{font-weight:600;font-size:14px}
+.lane-h .ct{margin-left:auto;font-family:'IBM Plex Mono';font-size:11px;color:var(--muted)}
+.lane-body{padding:8px;overflow:auto;flex:1;min-height:60px}
+.lane-foot{padding:8px;border-top:1px solid var(--line)}
+.dcard{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:8px}
+.dcard.drag{opacity:.4}
+.dcard .job{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dcard .addr{font-size:12px;color:var(--muted);margin-top:2px;word-break:break-word}
+.dcard .foot{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.tag{font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px}
+.tag.rush{background:#fbe4e5;color:var(--red)}
+.tag.st-unscheduled{background:#eef1f4;color:var(--grey)}
+.tag.st-scheduled{background:#e6ecf3;color:var(--navy)}
+.tag.st-out{background:#fbe4e5;color:var(--red)}
+.tag.st-delivered{background:#e5f3ec;color:var(--ok)}
+.tag.pickup{background:#efe6fb;color:#6b3fa0}
+.mini{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:11px;padding:4px 7px;color:var(--navy);text-decoration:none;display:inline-block}
+.mini:hover{background:#f0f3f6}.mini.x:hover{color:var(--red);border-color:var(--red)}
+.seqn{font-family:'IBM Plex Mono';font-weight:600;font-size:12px;background:var(--navy);color:#fff;border-radius:5px;padding:1px 6px}
+.queue{max-height:72vh;overflow:auto}
+.geo-warn{color:var(--warn);font-weight:600;font-size:11px}
+.boardctl{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+.boardctl .field{margin:0}
+
+/* live map */
+#liveWrap{display:grid;grid-template-columns:300px 1fr;gap:14px}
+@media(max-width:820px){#liveWrap{grid-template-columns:1fr}}
+#livemap{height:70vh;min-height:420px;border-radius:10px;background:#dfe4e9}
+.drow{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;cursor:pointer;background:#fff}
+.drow:hover{background:#f7f9fb}.drow.stale{opacity:.55}
+.drow .dt{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.drow .nm{font-weight:600;font-size:14px}
+.drow .sub{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted)}
+.badge{margin-left:auto;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;padding:2px 7px;border-radius:20px}
+.badge.live{background:#e5f3ec;color:var(--ok)}.badge.stale{background:#eef1f4;color:var(--stale)}
+
+/* driver */
+.statwrap{text-align:center;padding:6px 0}
+.dot-big{width:15px;height:15px;border-radius:50%;display:inline-block;margin-right:8px;vertical-align:-2px;background:var(--stale)}
+.dot-big.live{background:var(--ok);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(31,122,77,.5)}70%{box-shadow:0 0 0 12px rgba(31,122,77,0)}100%{box-shadow:0 0 0 0 rgba(31,122,77,0)}}
+.big-state{font-family:'Barlow Semi Condensed';font-weight:700;font-size:26px;text-transform:uppercase}
+.metaline{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted);margin-top:5px}
+
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line);border-radius:22px;margin:0 6px 6px 0;font-size:13px;background:#fff}
+.chip .c{width:11px;height:11px;border-radius:50%}
+.chip .rm{border:none;background:none;color:var(--muted);font-size:14px;padding:0 2px;cursor:pointer}
+.chip .rm:hover{color:var(--red)}
+
+.pin{background:transparent;border:none}
+.pin div{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+.pin span{transform:rotate(45deg);color:#fff;font-family:'IBM Plex Mono';font-weight:600;font-size:11px}
+.stop-pin div{width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'IBM Plex Mono';font-weight:600;font-size:12px}
+.stop-pin.grey div{opacity:.55}
+.depot-sq div{width:22px;height:22px;border-radius:5px;background:#0b2339;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.poi-pin div{width:22px;height:22px;border-radius:5px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-family:'IBM Plex Mono';font-weight:600;font-size:11px}
+.lmtoggle .sw{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:2px;vertical-align:-1px}
+.lmtoggle{display:flex;align-items:center;gap:6px;font-family:'Inter';text-transform:none;letter-spacing:0;color:var(--ink);font-size:13px;margin:0}
+.lmtoggle input{width:auto}
+
+pre.sql{background:var(--navy);color:#cfe0f0;font-family:'IBM Plex Mono';font-size:11px;line-height:1.5;padding:14px;border-radius:8px;overflow:auto;max-height:280px;white-space:pre;border-left:3px solid var(--red);margin:0}
+.setup-step{font-family:'IBM Plex Mono';font-size:11px;color:var(--red);letter-spacing:.06em;text-transform:uppercase;margin:0 0 4px}
+/* ---- phone optimization ---- */
+@media(max-width:640px){
+  input,select,textarea{font-size:16px}          /* stop iOS zoom-on-focus */
+  .hbar{padding:9px 12px;gap:8px}
+  .brand img{height:30px;padding:4px 7px}
+  .brand .hubtag{display:none}
+  .who{display:none}                              /* reclaim width; name still saved */
+  nav{padding:0 8px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav button{padding:9px 13px;font-size:13.5px}
+  .wrap{padding:12px}
+  .sec-body{padding:12px}
+  .card+.card{margin-top:12px}
+  .board{grid-template-columns:1fr;gap:10px}
+  .lane{flex:0 0 84vw;max-height:none}            /* one lane ~fills screen, swipe across */
+  .lane-body{max-height:52vh}
+  .mini{padding:8px 11px;font-size:12px}          /* fat-finger tap targets */
+  .iconbtn{min-height:32px;min-width:32px}
+  .btn.sm{padding:9px 12px}
+  .dcard .foot{gap:8px}
+  #livemap{height:56vh;min-height:320px}
+  #liveWrap{gap:10px}
+  .boardctl{gap:8px}
+  .boardctl .field{flex:1 1 100%}
+  pre.sql{font-size:10.5px}
+}
+@media(max-width:640px){body{overscroll-behavior-y:contain}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hbar">
+    <div class="brand"><img id="brandLogo" src="data:image/png;base64,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" alt="Adman Electric Prefabrication"><span class="hubtag">Operations Hub</span></div>
+    <span class="who" id="whoTag"></span>
+    <button class="gear" id="signOut" style="display:none">Sign out</button>
+    <button class="gear" id="gearBtn">⚙</button>
+  </div>
+  <nav id="nav" style="display:none">
+    <button data-v="vIntake" class="on">Add delivery</button>
+    <button data-v="vPickup">Add pickup</button>
+    <button data-v="vRoutines">Routines</button>
+    <button data-v="vBoard">Schedule board</button>
+    <button data-v="vMap">Live map</button>
+    <button data-v="vDrive">Drive</button>
+    <button data-v="vRoster">Roster</button>
+    <button data-v="vTeam" style="display:none">Team</button>
+  </nav>
+</header>
+
+<!-- ===== SETUP ===== -->
+<div class="view" id="vSetup">
+  <div class="wrap" style="max-width:820px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2>Connect Supabase</h2></div>
+      <div class="sec-body">
+        <div class="note" style="margin-bottom:12px">One-time per device (or bake the URL/key into the file before deploy so devices skip this). Paste the Project URL + publishable key (Settings → API Keys). After this you'll sign in — your login is what persists across devices.</div>
+        <div class="field"><label>Project URL</label><input id="cfgUrl" class="mono" placeholder="https://xxxx.supabase.co"></div>
+        <div class="field"><label>Publishable key (sb_publishable_…)</label><input id="cfgKey" class="mono" placeholder="sb_publishable_…"></div>
+        <button class="btn red" id="cfgSave">Save &amp; continue to sign in</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>2</em></span><h2>Database</h2></div>
+      <div class="sec-body">
+        <div class="note">Your Supabase schema is managed directly in Supabase (profiles, roles, status, drivers, deliveries, and the admin functions already exist). This app connects to it — there's no SQL to run here. Migrations are applied manually in the Supabase SQL Editor.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AUTH ===== -->
+<div class="view" id="vAuth">
+  <div class="wrap" style="max-width:420px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2 id="authTitle">Sign In</h2></div>
+      <div class="sec-body">
+        <div class="field" id="nameField" style="display:none"><label>Your name</label><input id="auName" placeholder="Marcus D."></div>
+        <div class="field"><label>Email</label><input id="auEmail" type="email" autocomplete="username" placeholder="you@admanelectric.com"></div>
+        <div class="field"><label>Password</label><input id="auPass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+        <button class="btn red big" id="auGo">Sign in</button>
+        <div class="hint" style="margin-top:10px" id="auMsg"></div>
+        <div style="margin-top:14px;text-align:center"><button class="btn ghost sm" id="auToggle">New here? Create an account</button></div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:12px">Create an account and you'll land in a “waiting for approval” screen until an admin approves you. Once approved, you stay signed in on this device.</div>
+  </div>
+</div>
+
+<!-- ===== PENDING ===== -->
+<div class="view" id="vPending">
+  <div class="wrap" style="max-width:420px">
+    <div class="card">
+      <div class="sec-h"><span class="num">—</span><h2>Account Status</h2></div>
+      <div class="sec-body">
+        <div class="big-state" id="pendWho" style="font-size:20px;margin-bottom:8px"></div>
+        <div class="note" id="pendMsg"></div>
+        <button class="btn ghost sm" id="pendOut" style="margin-top:14px">Sign out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TEAM ===== -->
+<div class="view" id="vTeam">
+  <div class="wrap" style="max-width:720px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2>Add User</h2></div>
+      <div class="sec-body">
+        <div class="note" style="margin-bottom:12px">Creates the account directly — already confirmed, no email sent. You'll get a temporary password to hand to the person; they change it after signing in.</div>
+        <div class="row">
+          <div class="field"><label>Name</label><input id="nuName" placeholder="Marcus D."></div>
+          <div class="field"><label>Email</label><input id="nuEmail" type="email" placeholder="marcus@admanelectric.com"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Role</label><select id="nuRole"></select></div>
+          <div class="field"><label>Temp password (optional)</label><input id="nuPass" placeholder="auto-generated if blank"></div>
+        </div>
+        <button class="btn red" id="nuCreate">Create account</button>
+        <div id="nuResult" class="note" style="display:none;margin-top:12px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>2</em></span><h2>User Management</h2></div>
+      <div class="sec-body">
+        <div class="note" style="margin-bottom:12px">Approve, set roles, suspend/reactivate. <b>Driver</b> role also needs a truck linked so their run and location line up.</div>
+        <div id="teamList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="view" id="vIntake">
+  <div class="wrap" style="max-width:640px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2>Add a Delivery</h2></div>
+      <div class="sec-body">
+        <div class="field"><label>Job # / label</label><input id="iJob" placeholder="Job 4412 – Riverside"></div>
+        <div class="field"><label>Delivery address</label><textarea id="iAddr" rows="2" placeholder="Street, City, State"></textarea></div>
+        <div class="row">
+          <div class="field"><label>Needed by</label><input type="date" id="iDate"></div>
+          <div class="field"><label>Priority</label><select id="iPri"><option value="normal">Normal</option><option value="rush">Rush</option></select></div>
+        </div>
+        <div class="field"><label>Notes</label><input id="iNotes" placeholder="dock B, call ahead, gate code…"></div>
+        <div class="field"><label>Materials (BOM)</label><button class="btn ghost sm" id="iBom" type="button">＋ Add materials</button> <span class="hint" id="iBomCount"></span></div>
+        <button class="btn red big" id="iAdd">Add to delivery queue</button>
+        <div class="hint" style="margin-top:8px" id="iMsg">Geocodes on submit and lands on the schedule board.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>2</em></span><h2>Just Added</h2></div>
+      <div class="sec-body"><div id="recentList" class="hint">Nothing yet this session.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD PICKUP ===== -->
+<div class="view" id="vPickup">
+  <div class="wrap" style="max-width:640px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2>Add a Pickup</h2></div>
+      <div class="sec-body">
+        <div class="note" style="margin-bottom:12px">A pickup = grab materials from a supply house or a job, then take them somewhere (another job or back to the shop). Shows on the board and the driver's run marked as a pickup.</div>
+        <div class="field"><label>Label</label><input id="pkName" placeholder="Pickup 4412 – conduit from Gexpro"></div>
+        <div class="field"><label>Pick up from (address)</label><textarea id="pkFrom" rows="2" placeholder="Supply house or job address"></textarea></div>
+        <div class="field"><label>What to pick up (BOM)</label><button class="btn ghost sm" id="pkBom" type="button">＋ Add materials</button> <span class="hint" id="pkBomCount"></span></div>
+        <div class="field"><label>Deliver to (destination)</label>
+          <div class="row"><textarea id="pkDest" rows="2" placeholder="Another job address, or the shop"></textarea></div>
+          <button class="btn ghost sm" id="pkBackShop" type="button" style="margin-top:6px">↩ Back to shop</button>
+        </div>
+        <div class="row">
+          <div class="field"><label>Needed by</label><input type="date" id="pkDate"></div>
+          <div class="field"><label>Priority</label><select id="pkPri"><option value="normal">Normal</option><option value="rush">Rush</option></select></div>
+        </div>
+        <div class="field"><label>Notes</label><input id="pkNotes" placeholder="will-call #, dock, contact…"></div>
+        <button class="btn red big" id="pkAdd">Add pickup to board</button>
+        <div class="hint" style="margin-top:8px" id="pkMsg">Geocodes both stops on submit and lands on the schedule board.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>2</em></span><h2>Just Added</h2></div>
+      <div class="sec-body"><div id="pkRecentList" class="hint">Nothing yet this session.</div></div>
+    </div>
+  </div>
+</div>
+<div class="view" id="vRoutines">
+  <div class="wrap" style="max-width:760px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2>Save a Repeated Delivery</h2></div>
+      <div class="sec-body">
+        <div class="field"><label>Job # / label</label><input id="tName" placeholder="Warehouse restock – Main"></div>
+        <div class="field"><label>Address</label><textarea id="tAddr" rows="2" placeholder="Street, City, State"></textarea></div>
+        <div class="row">
+          <div class="field"><label>Group (optional)</label><input id="tGroup" placeholder="Daily AM run"></div>
+          <div class="field"><label>Default truck</label><select id="tTruck"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Priority</label><select id="tPri"><option value="normal">Normal</option><option value="rush">Rush</option></select></div>
+          <div class="field"><label>Notes</label><input id="tNotes" placeholder="dock B, gate code…"></div>
+        </div>
+        <button class="btn red big" id="tAdd">Save routine</button>
+        <div class="hint" style="margin-top:8px" id="tMsg">Geocodes once and stores it. Run it onto the board any day you need it.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>2</em></span><h2>Run Onto Board</h2>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <label style="margin:0;font-family:'IBM Plex Mono';font-size:11px;color:var(--muted)">for</label>
+          <input type="date" id="tRunDate" style="width:auto">
+        </div>
+      </div>
+      <div class="sec-body"><div id="tmplList"></div><div class="note" id="tmplEmpty">No routines saved yet.</div></div>
+    </div>
+  </div>
+</div>
+<div class="view" id="vBoard">
+  <div class="wrap">
+    <div class="boardctl">
+      <div class="field"><label>Board date</label><input type="date" id="bDate"></div>
+      <div class="field" style="flex:2"><label>Depot (for optimize)</label>
+        <div class="row"><input id="bDepot" placeholder="Adman shop address"><button class="btn ghost sm" id="bDepotGeo" style="flex:0 0 auto">Set</button></div></div>
+      <button class="btn ghost sm" id="bRefresh">↻ Refresh</button>
+    </div>
+    <div class="board">
+      <div class="card">
+        <div class="sec-h"><span class="num">Q</span><h2>Unscheduled</h2><span class="hint" id="qCount" style="margin-left:auto"></span></div>
+        <div class="sec-body queue" id="queue"></div>
+      </div>
+      <div>
+        <div class="lanes" id="lanes"></div>
+        <div class="note" id="noLanes" style="margin-top:10px;display:none">No trucks yet — add them under Roster.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LIVE MAP ===== -->
+<div class="view" id="vMap">
+  <div class="wrap">
+    <div class="boardctl" style="margin-bottom:12px">
+      <div class="field"><label>Map date</label><input type="date" id="liveDate"></div>
+      <label class="lmtoggle"><input type="checkbox" id="showRoutes" checked> Planned routes</label>
+      <label class="lmtoggle"><input type="checkbox" id="showStops" checked> Delivery stops</label>
+      <label class="lmtoggle"><input type="checkbox" id="showUnsched"> Unscheduled</label>
+      <label class="lmtoggle"><input type="checkbox" id="poiElec" checked> <span class="sw" style="background:#bd1d23"></span>Electrical</label>
+      <label class="lmtoggle"><input type="checkbox" id="poiSupply"> <span class="sw" style="background:#0d7d8f"></span>Supply houses</label>
+      <label class="lmtoggle"><input type="checkbox" id="poiBig"> <span class="sw" style="background:#b06a00"></span>Big box</label>
+      <label class="lmtoggle"><input type="checkbox" id="poiAuto"> <span class="sw" style="background:#6b3fa0"></span>Auto parts</label>
+    </div>
+    <div id="liveWrap">
+      <div>
+        <div class="btnbar" style="margin-bottom:10px"><button class="btn ghost sm" id="fitAll">Fit all</button></div>
+        <div id="liveList"></div>
+        <div class="note" id="liveEmpty">No trucks sharing yet.</div>
+        <div class="hint" style="margin-top:10px">● live truck · ①②③ its stops in order · line = route it should drive</div>
+      </div>
+      <div id="livemap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DRIVE ===== -->
+<div class="view" id="vDrive">
+  <div class="wrap" style="max-width:640px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2>Drive</h2></div>
+      <div class="sec-body">
+        <div class="row" style="align-items:flex-end">
+          <div class="field" style="margin:0"><label>Your truck</label><select id="drvPick"></select></div>
+          <div class="field" style="margin:0;flex:0 0 150px"><label>Run date</label><input type="date" id="drvDate"></div>
+        </div>
+        <div class="statwrap" style="margin-top:6px">
+          <div><span class="dot-big" id="drvDot"></span><span class="big-state" id="drvState">Off</span></div>
+          <div class="metaline" id="drvMeta">Not sharing location</div>
+        </div>
+        <button class="btn red big" id="drvToggle" style="margin-top:10px">Start sharing</button>
+        <div class="note" style="margin-top:12px">Keep this screen up while driving — phones pause background tabs. Re-sends every ~20s and holds the screen awake.</div>
+      </div>
+    </div>
+    <div class="card"><div class="sec-h"><span class="num">0<em>2</em></span><h2>Today's Run</h2></div>
+      <div class="sec-body"><div id="runList"></div><div class="hint" id="runEmpty">Nothing scheduled for this truck/date.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ROSTER ===== -->
+<div class="view" id="vRoster">
+  <div class="wrap" style="max-width:640px">
+    <div class="card">
+      <div class="sec-h"><span class="num">0<em>1</em></span><h2>Trucks &amp; Drivers</h2></div>
+      <div class="sec-body">
+        <div id="rosterChips" style="margin-bottom:12px"></div>
+        <div class="row" style="align-items:flex-end">
+          <div class="field" style="margin:0"><label>Add truck / driver</label><input id="newDriverName" placeholder="Truck 3 – Marcus"></div>
+          <div class="field" style="flex:0 0 84px;margin:0"><label>Color</label><input type="color" id="newDriverColor" value="#bd1d23" style="height:42px;padding:4px"></div>
+          <button class="btn sm" id="addDriver" style="flex:0 0 auto;height:42px">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BOM editor modal ===== -->
+<div id="bomModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(11,35,57,.55);align-items:center;justify-content:center;padding:16px">
+  <div class="card" style="width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="sec-h"><span class="num">BOM</span><h2 id="bomTitle">Materials</h2><button class="gear" id="bomClose" style="margin-left:auto;border-color:var(--line);color:var(--muted)">✕</button></div>
+    <div class="sec-body" style="overflow:auto">
+      <div class="hint" style="margin-bottom:8px">What's going out with this stop. Drivers see this on their run.</div>
+      <div id="bomRows"></div>
+      <button class="btn ghost sm" id="bomAdd" style="margin-top:6px">＋ Add item</button>
+    </div>
+    <div class="sec-body" style="border-top:1px solid var(--line);display:flex;gap:8px">
+      <button class="btn red" id="bomSave" style="flex:1">Save materials</button>
+      <button class="btn ghost" id="bomCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= config ================= */
+const CONFIG={SUPABASE_URL:'https://xjprxkgvptvbiwytcbyg.supabase.co',SUPABASE_ANON_KEY:'sb_publishable_eCN-P7RNPWq8kCMTcUQarw_woBE7vKt'};
+const DEPOT_DEFAULT='2311 E 28th St, Chattanooga, TN 37407';
+const UPSERT_MS=20000, MOVE_M=25, STALE_MS=120000;
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}}
+function cfg(){return{url:ls('adman_sb_url')||CONFIG.SUPABASE_URL,key:ls('adman_sb_key')||CONFIG.SUPABASE_ANON_KEY};}
+const $=s=>document.querySelector(s);
+let sb=null, me=ls('adman_user_name')||'';
+
+const SQL=`-- Adman Operations Hub — AUTH setup, run once (re-runnable)
+-- tables
+create table if not exists public.drivers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null, color text not null default '#bd1d23',
+  active boolean not null default true, created_at timestamptz not null default now()
+);
+create table if not exists public.driver_positions (
+  driver_id uuid primary key references public.drivers(id) on delete cascade,
+  lat double precision not null, lng double precision not null,
+  heading double precision, speed double precision, accuracy double precision,
+  updated_at timestamptz not null default now()
+);
+create table if not exists public.deliveries (
+  id uuid primary key default gen_random_uuid(),
+  job text, address text not null, lat double precision, lng double precision,
+  notes text, priority text not null default 'normal', requested_date date,
+  status text not null default 'unscheduled',
+  driver_id uuid references public.drivers(id) on delete set null,
+  scheduled_date date, seq int, created_by text,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table if not exists public.delivery_templates (
+  id uuid primary key default gen_random_uuid(),
+  name text, address text not null, lat double precision, lng double precision,
+  notes text, priority text not null default 'normal',
+  default_driver_id uuid references public.drivers(id) on delete set null,
+  group_name text, active boolean not null default true,
+  created_by text, created_at timestamptz not null default now()
+);
+-- profiles: one per login (role + optional truck link)
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  name text, role text not null default 'pm',
+  driver_id uuid references public.drivers(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+-- helper functions (security definer so policies can read role)
+create or replace function public.my_role() returns text language sql stable security definer set search_path=public as $$ select role from public.profiles where id=auth.uid() $$;
+create or replace function public.my_driver() returns uuid language sql stable security definer set search_path=public as $$ select driver_id from public.profiles where id=auth.uid() $$;
+-- auto-create profile on signup; FIRST account becomes admin
+create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path=public as $$
+begin
+  insert into public.profiles(id,name,role) values(new.id,
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email,'@',1)),
+    case when (select count(*) from public.profiles)=0 then 'admin' else 'pm' end);
+  return new;
+end $$;
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
+-- realtime (idempotent)
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='deliveries') then execute 'alter publication supabase_realtime add table public.deliveries'; end if;
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='driver_positions') then execute 'alter publication supabase_realtime add table public.driver_positions'; end if;
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='delivery_templates') then execute 'alter publication supabase_realtime add table public.delivery_templates'; end if;
+end $$;
+-- enable RLS
+alter table public.profiles enable row level security;
+alter table public.drivers enable row level security;
+alter table public.driver_positions enable row level security;
+alter table public.deliveries enable row level security;
+alter table public.delivery_templates enable row level security;
+-- drop old open policies if present
+drop policy if exists "hub drivers all" on public.drivers;
+drop policy if exists "hub pos all" on public.driver_positions;
+drop policy if exists "hub deliv all" on public.deliveries;
+drop policy if exists "hub tmpl all" on public.delivery_templates;
+-- profiles
+drop policy if exists "prof read" on public.profiles;
+create policy "prof read" on public.profiles for select to authenticated using (true);
+drop policy if exists "prof admin" on public.profiles;
+create policy "prof admin" on public.profiles for all to authenticated using (public.my_role()='admin') with check (public.my_role()='admin');
+-- drivers (roster)
+drop policy if exists "drv read" on public.drivers;
+create policy "drv read" on public.drivers for select to authenticated using (true);
+drop policy if exists "drv manage" on public.drivers;
+create policy "drv manage" on public.drivers for all to authenticated using (public.my_role() in ('admin','dispatcher')) with check (public.my_role() in ('admin','dispatcher'));
+-- positions (driver writes own truck; admin any)
+drop policy if exists "pos read" on public.driver_positions;
+create policy "pos read" on public.driver_positions for select to authenticated using (true);
+drop policy if exists "pos write" on public.driver_positions;
+create policy "pos write" on public.driver_positions for all to authenticated using (driver_id=public.my_driver() or public.my_role()='admin') with check (driver_id=public.my_driver() or public.my_role()='admin');
+-- deliveries
+drop policy if exists "deliv read" on public.deliveries;
+create policy "deliv read" on public.deliveries for select to authenticated using (true);
+drop policy if exists "deliv insert" on public.deliveries;
+create policy "deliv insert" on public.deliveries for insert to authenticated with check (public.my_role() in ('admin','dispatcher','pm'));
+drop policy if exists "deliv update" on public.deliveries;
+create policy "deliv update" on public.deliveries for update to authenticated using (public.my_role() in ('admin','dispatcher') or (public.my_role()='driver' and driver_id=public.my_driver())) with check (public.my_role() in ('admin','dispatcher') or (public.my_role()='driver' and driver_id=public.my_driver()));
+drop policy if exists "deliv delete" on public.deliveries;
+create policy "deliv delete" on public.deliveries for delete to authenticated using (public.my_role() in ('admin','dispatcher'));
+-- templates
+drop policy if exists "tmpl read" on public.delivery_templates;
+create policy "tmpl read" on public.delivery_templates for select to authenticated using (true);
+drop policy if exists "tmpl manage" on public.delivery_templates;
+create policy "tmpl manage" on public.delivery_templates for all to authenticated using (public.my_role() in ('admin','dispatcher','pm')) with check (public.my_role() in ('admin','dispatcher','pm'));
+-- grants: lock out anon, allow authenticated
+revoke all on public.drivers, public.driver_positions, public.deliveries, public.delivery_templates from anon;
+grant usage on schema public to authenticated;
+grant all on public.profiles, public.drivers, public.driver_positions, public.deliveries, public.delivery_templates to authenticated;
+grant execute on function public.my_role(), public.my_driver() to authenticated;`;
+
+/* ================= boot ================= */
+function todayStr(){return new Date().toISOString().slice(0,10);}
+let profile=null, authedUser=null, inited=false, authMode='signin', myPerms=[];
+// each page (view) maps to a permission key the admin can grant/deny
+const VIEW_PERM={vIntake:'add_delivery',vPickup:'add_pickup',vRoutines:'routines',vBoard:'schedule_board',vMap:'live_map',vDrive:'drive',vRoster:'roster',vTeam:'user_management'};
+const ALL_PERMS=Object.values(VIEW_PERM);
+// fallback tab sets (only used if the permission lookup can't be reached)
+const ROLE_TABS={
+  admin:['vIntake','vPickup','vRoutines','vBoard','vMap','vDrive','vRoster','vTeam'],
+  warehouse_manager:['vIntake','vPickup','vRoutines','vBoard','vMap','vRoster'],
+  fleet_manager:['vBoard','vMap','vRoster','vDrive'],
+  pm:['vIntake','vPickup','vRoutines','vBoard','vMap'],
+  foreman:['vIntake','vPickup','vMap'],
+  driver:['vDrive'],
+  employee:[]
+};
+function boot(){
+  ['#bDate','#drvDate','#iDate','#liveDate'].forEach(id=>$(id).value=todayStr());
+  $('#bDepot').value=ls('adman_depot_addr')||DEPOT_DEFAULT;
+  const c=cfg();
+  if(!c.url||!c.key||!connect()){ openSetup(); return; }
+  gateAuth();
+}
+function connect(){
+  const c=cfg();
+  try{
+    sb=supabase.createClient(c.url,c.key);
+    sb.auth.onAuthStateChange((ev,sess)=>{
+      if((ev==='SIGNED_IN'||ev==='INITIAL_SESSION')&&sess){ afterLogin(sess); }
+      if(ev==='SIGNED_OUT'){ inited=false; authedUser=null; showAuth(); }
+    });
+    return true;
+  }catch(e){return false;}
+}
+async function gateAuth(){
+  try{ const {data:{session}}=await sb.auth.getSession(); if(session){ afterLogin(session); return; } }catch(e){}
+  showAuth();
+}
+function showAuth(){ $('#nav').style.display='none'; $('#signOut').style.display='none'; $('#whoTag').textContent=''; showView('vAuth'); }
+async function afterLogin(session){
+  const uid=session.user.id;
+  if(authedUser===uid && inited){ return; }
+  authedUser=uid;
+  await loadProfile(uid, session.user);
+  await loadMyPerms();
+  $('#signOut').style.display='';
+  const st=(profile&&profile.status)||'pending';
+  if(st!=='approved'){ showPending(st); return; }   // only approved users get in
+  applyRole();
+  if(!inited){ inited=true; await init(); applyRole(); }
+}
+function showPending(status){
+  $('#nav').style.display='none';
+  $('#pendMsg').textContent = status==='suspended'
+    ? 'Your account has been suspended. Contact your admin if this is a mistake.'
+    : 'Your account is waiting for admin approval. You’ll get in once it’s approved.';
+  $('#pendWho').textContent=(profile&&profile.name)||'';
+  showView('vPending');
+}
+async function loadProfile(uid,user){
+  let r=await sb.from('profiles').select('*').eq('id',uid).maybeSingle();
+  if(!r.data){ await new Promise(x=>setTimeout(x,700)); r=await sb.from('profiles').select('*').eq('id',uid).maybeSingle(); }
+  profile=r.data||{id:uid,name:(user&&user.email&&user.email.split('@')[0])||'User',role:'employee',status:'pending',driver_id:null};
+  me=profile.name||me;
+  $('#whoTag').textContent=(profile.name||'')+' · '+(profile.role||'');
+}
+async function loadMyPerms(){
+  const role=(profile&&profile.role)||'employee';
+  if(role==='admin'){ myPerms=ALL_PERMS.slice(); return; }   // admin always sees everything
+  try{
+    const {data,error}=await sb.rpc('my_permissions');
+    if(error) throw error;
+    myPerms=Array.isArray(data)?data:[];
+  }catch(e){
+    // couldn't reach the permission function — fall back to role defaults so the app still works
+    myPerms=(ROLE_TABS[role]||[]).map(v=>VIEW_PERM[v]);
+  }
+}
+function applyRole(){
+  const role=(profile&&profile.role)||'employee';
+  $('#nav').style.display='flex';
+  let first=null;
+  $('#nav').querySelectorAll('button').forEach(b=>{
+    const perm=VIEW_PERM[b.dataset.v];
+    const ok=(role==='admin')?true:myPerms.includes(perm);
+    b.style.display=ok?'':'none'; b.classList.remove('on');
+    if(ok&&!first)first=b;
+  });
+  if(first){ first.classList.add('on'); showView(first.dataset.v);
+    if(first.dataset.v==='vBoard')renderBoard();
+    if(first.dataset.v==='vDrive')renderRun();
+    if(first.dataset.v==='vRoutines')renderTemplates();
+  } else {
+    // approved but granted no pages yet — tell them instead of showing a blank screen
+    $('#nav').style.display='none';
+    $('#pendMsg').textContent='You’re approved, but no pages have been turned on for you yet. Your admin can grant access under User Management.';
+    $('#pendWho').textContent=(profile&&profile.name)||'';
+    showView('vPending');
+  }
+  if(profile&&profile.driver_id){ const s=$('#drvPick'); if(s&&[...s.options].some(o=>o.value===profile.driver_id)){s.value=profile.driver_id; ls('adman_driver_id',profile.driver_id);} }
+}
+function canSched(){ return profile && (profile.role==='admin'||profile.role==='warehouse_manager'||profile.role==='fleet_manager'); }
+function connectClient(){return connect();}
+function openSetup(){$('#cfgUrl').value=ls('adman_sb_url')||'';$('#cfgKey').value=ls('adman_sb_key')||'';$('#nav').style.display='none';showView('vSetup');}
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));$('#'+id).classList.add('on');
+  if(id==='vMap'){ ensureLiveMap(); setTimeout(()=>{liveMap&&liveMap.invalidateSize();drawAllLive();},60); }
+}
+$('#nav').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  $('#nav').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  showView(b.dataset.v);
+  if(b.dataset.v==='vBoard')renderBoard();
+  if(b.dataset.v==='vDrive')renderRun();
+  if(b.dataset.v==='vRoster')renderRosterChips();
+  if(b.dataset.v==='vRoutines')renderTemplates();
+  if(b.dataset.v==='vTeam')renderTeam();
+});
+$('#gearBtn').onclick=openSetup;
+$('#signOut').onclick=async()=>{ try{await sb.auth.signOut();}catch(e){} };
+$('#pendOut').onclick=async()=>{ try{await sb.auth.signOut();}catch(e){} };
+$('#cfgSave').onclick=()=>{
+  const u=$('#cfgUrl').value.trim().replace(/\/+$/,''),k=$('#cfgKey').value.trim();
+  if(!u||!k){alert('Paste the Project URL and key.');return;}
+  ls('adman_sb_url',u);ls('adman_sb_key',k);
+  if(connect()) gateAuth(); else alert('Could not connect — check the URL/key.');
+};
+
+/* ===== auth screen (sign in OR self sign-up; admin approves) ===== */
+$('#auToggle').onclick=()=>{
+  authMode=authMode==='signin'?'signup':'signin';
+  $('#authTitle').textContent=authMode==='signin'?'Sign In':'Create Account';
+  $('#nameField').style.display=authMode==='signin'?'none':'block';
+  $('#auGo').textContent=authMode==='signin'?'Sign in':'Create account';
+  $('#auToggle').textContent=authMode==='signin'?'New here? Create an account':'Have an account? Sign in';
+  $('#auMsg').textContent='';
+};
+$('#auGo').onclick=async()=>{
+  const email=$('#auEmail').value.trim(), pass=$('#auPass').value;
+  if(!email||!pass){$('#auMsg').textContent='Enter email and password.';return;}
+  const b=$('#auGo');b.disabled=true;const orig=b.textContent;b.innerHTML='<span class="spin"></span>';
+  try{
+    if(authMode==='signup'){
+      const {data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name:$('#auName').value.trim()}}});
+      if(error)throw error;
+      if(!data.session){ $('#auMsg').textContent='Account created. If a confirmation email is required, confirm it, then sign in.'; }
+      // if a session comes back, onAuthStateChange → afterLogin → pending screen until approved
+    } else {
+      const {error}=await sb.auth.signInWithPassword({email,password:pass});
+      if(error)throw error;
+    }
+  }catch(e){ $('#auMsg').textContent=(e&&e.message)||'Auth failed.'; }
+  b.disabled=false;b.textContent=orig;
+};
+
+/* ===== user management (admin) — calls existing DB functions ===== */
+const ALL_ROLES=['admin','pm','foreman','warehouse_manager','fleet_manager','driver','employee'];
+function fillNuRole(){const s=$('#nuRole');if(!s||s.options.length)return;ALL_ROLES.forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(r==='employee')o.selected=true;s.appendChild(o);});}
+$('#nuCreate')&&($('#nuCreate').onclick=async()=>{
+  const email=$('#nuEmail').value.trim(), name=$('#nuName').value.trim(), role=$('#nuRole').value, password=$('#nuPass').value.trim();
+  if(!email){alert('Enter an email.');return;}
+  const b=$('#nuCreate');b.disabled=true;const orig=b.textContent;b.innerHTML='<span class="spin"></span> Creating…';
+  try{
+    const {data,error}=await sb.functions.invoke('admin-create-user',{body:{email,name,role,password:password||undefined}});
+    if(error) throw error;
+    if(data&&data.error) throw new Error(data.error);
+    const res=$('#nuResult');res.style.display='block';
+    res.innerHTML=`Account created ✓<br><b>${esc(email)}</b><br>Temp password: <span class="mono" style="font-size:14px">${esc(data.password)}</span><br><span class="hint">Share this with them however you like — nothing was emailed. They can change it after signing in.</span>`;
+    $('#nuName').value='';$('#nuEmail').value='';$('#nuPass').value='';
+    renderTeam();
+  }catch(e){
+    const res=$('#nuResult');res.style.display='block';
+    res.innerHTML=`<span style="color:var(--red)">Couldn’t create: ${esc(await fnErr(e))}</span><br><span class="hint">If this says the function isn’t found, the Edge Function isn’t deployed yet.</span>`;
+  }
+  b.disabled=false;b.textContent=orig;
+});
+async function fnErr(e){
+  let msg=(e&&e.message)||String(e);
+  try{ if(e&&e.context&&typeof e.context.json==='function'){ const b=await e.context.json(); if(b&&b.error) msg=b.error+(b.detail?(' — '+b.detail):''); } }catch(_){}
+  return msg;
+}
+async function renderTeam(){
+  fillNuRole();
+  const box=$('#teamList'); if(!box)return;
+  // load users + the permission tables together
+  const [profRes,permRes,rpRes,upRes]=await Promise.all([
+    sb.from('profiles').select('*').order('created_at'),
+    sb.from('permissions').select('*'),
+    sb.from('role_permissions').select('*'),
+    sb.from('user_permissions').select('*')
+  ]);
+  if(profRes.error){box.innerHTML='<div class="hint">Couldn’t load users — admin only.</div>';return;}
+  const perms=(permRes.data||[]);
+  const permById={}; perms.forEach(p=>permById[p.id]=p);
+  const permByKey={}; perms.forEach(p=>permByKey[p.key]=p);
+  const orderedPerms=ALL_PERMS.map(k=>permByKey[k]).filter(Boolean);
+  const roleAllow={}; (rpRes.data||[]).forEach(r=>{ if(r.allowed){ (roleAllow[r.role]=roleAllow[r.role]||new Set()).add(r.permission_id);} });
+  const userOv={}; (upRes.data||[]).forEach(u=>{ (userOv[u.user_id]=userOv[u.user_id]||{})[u.permission_id]=u.allowed; });
+  const effective=(p,permId)=>{
+    if(p.role==='admin') return true;
+    const ov=userOv[p.id]&&userOv[p.id][permId];
+    if(ov!==undefined) return ov;
+    return !!(roleAllow[p.role]&&roleAllow[p.role].has(permId));
+  };
+  box.innerHTML='';
+  (profRes.data||[]).forEach(p=>{
+    const el=document.createElement('div');el.className='dcard';
+    const stTag={approved:'st-delivered',pending:'st-scheduled',suspended:'st-out'}[p.status]||'st-unscheduled';
+    const accessRows = (p.role==='admin')
+      ? '<div class="hint" style="margin-top:8px">Admin sees every page.</div>'
+      : `<div class="hint" style="margin-top:10px;margin-bottom:4px">Pages this person can see:</div>
+         <div style="display:flex;flex-wrap:wrap;gap:10px">${orderedPerms.map(pm=>
+           `<label class="lmtoggle" style="font-size:13px"><input type="checkbox" data-perm="${pm.id}"${effective(p,pm.id)?' checked':''}> ${esc(pm.name)}</label>`).join('')}</div>
+         <div style="margin-top:6px"><button class="mini" data-access-reset>Reset to role default</button></div>`;
+    el.innerHTML=`<div class="job">${esc(p.name||'—')} <span class="tag ${stTag}">${p.status||'—'}</span>${p.id===authedUser?' <span class="tag st-scheduled">you</span>':''}</div>
+      <div class="hint" style="margin-top:2px">${esc(p.email||'')}</div>
+      <div class="foot" style="gap:8px;flex-wrap:wrap;margin-top:6px">
+        <select class="mini" data-role>${ALL_ROLES.map(r=>`<option value="${r}"${p.role===r?' selected':''}>${r}</option>`).join('')}</select>
+        <select class="mini" data-truck><option value="">— no truck —</option>${drivers.map(d=>`<option value="${d.id}"${p.driver_id===d.id?' selected':''}>${esc(d.name)}</option>`).join('')}</select>
+        ${p.status!=='approved'?'<button class="mini" data-approve>Approve</button>':''}
+        <button class="mini" data-role-save>Set role</button>
+        ${p.status==='approved'&&p.id!==authedUser?'<button class="mini x" data-suspend>Suspend</button>':''}
+        ${p.status==='suspended'?'<button class="mini" data-reactivate>Reactivate</button>':''}
+        <button class="mini" data-reset>Reset PW</button>
+      </div>
+      ${accessRows}
+      <div class="hint" data-pw style="margin-top:6px;display:none"></div>`;
+    const roleSel=el.querySelector('[data-role]');
+    const linkTruck=async()=>{ const driver_id=el.querySelector('[data-truck]').value||null; await sb.from('profiles').update({driver_id}).eq('id',p.id); };
+    el.querySelector('[data-truck]').onchange=linkTruck;
+    const ap=el.querySelector('[data-approve]'); if(ap) ap.onclick=()=>rpcUser('approve_user',{target_user:p.id,new_role:roleSel.value});
+    el.querySelector('[data-role-save]').onclick=()=>rpcUser('change_user_role',{target_user:p.id,new_role:roleSel.value},p.id);
+    const su=el.querySelector('[data-suspend]'); if(su) su.onclick=()=>rpcUser('suspend_user',{target_user:p.id});
+    const re=el.querySelector('[data-reactivate]'); if(re) re.onclick=()=>rpcUser('reactivate_user',{target_user:p.id,new_role:roleSel.value});
+    el.querySelectorAll('[data-perm]').forEach(cb=>{ cb.onchange=async()=>{
+      const permission_id=cb.getAttribute('data-perm');
+      const {error}=await sb.from('user_permissions').upsert({user_id:p.id,permission_id,allowed:cb.checked},{onConflict:'user_id,permission_id'});
+      if(error){alert('Save failed: '+error.message); cb.checked=!cb.checked; return;}
+      if(p.id===authedUser){ await loadMyPerms(); applyRole(); }
+    };});
+    const arst=el.querySelector('[data-access-reset]'); if(arst) arst.onclick=async()=>{
+      if(!confirm('Reset '+(p.name||'this user')+' back to their role’s default pages?'))return;
+      await sb.from('user_permissions').delete().eq('user_id',p.id);
+      renderTeam();
+    };
+    el.querySelector('[data-reset]').onclick=async()=>{
+      if(!confirm('Reset password for '+(p.name||'this user')+'? A new temp password will be generated.'))return;
+      const pw=el.querySelector('[data-pw]');pw.style.display='block';pw.textContent='Resetting…';
+      try{
+        const {data,error}=await sb.functions.invoke('admin-create-user',{body:{action:'reset',userId:p.id}});
+        if(error)throw error; if(data&&data.error)throw new Error(data.error);
+        pw.innerHTML=`New temp password: <span class="mono" style="font-size:14px">${esc(data.password)}</span> — share it, they change it after signing in.`;
+      }catch(e){ pw.innerHTML=`<span style="color:var(--red)">Reset failed: ${esc(await fnErr(e))}</span>`; }
+    };
+    box.appendChild(el);
+  });
+}
+async function rpcUser(fn,args,selfId){
+  const {error}=await sb.rpc(fn,args);
+  if(error){alert(fn+' failed: '+error.message);return;}
+  if(selfId&&selfId===authedUser&&args.new_role){ profile.role=args.new_role; $('#whoTag').textContent=(profile.name||'')+' · '+profile.role; applyRole(); }
+  renderTeam();
+}
+
+/* ================= data ================= */
+let drivers=[], driverMap={}, deliveries=[], recent=[], positions={}, templates=[], rtChannel=null;
+async function init(){ await loadDrivers(); await loadDeliveries(); await loadPositions(); await loadTemplates(); ensureDepot(); geocodePois(); subscribe(); }
+async function ensureDepot(){
+  if(isFinite(+ls('adman_depot_lat'))&&+ls('adman_depot_lat')) return;   // already set on this device
+  try{ const g=await geocode(DEPOT_DEFAULT); if(g){ls('adman_depot_addr',DEPOT_DEFAULT);ls('adman_depot_lat',g.lat);ls('adman_depot_lng',g.lng);$('#bDepot').value=DEPOT_DEFAULT;if(liveMap&&$('#vMap').classList.contains('on'))renderPlan();} }catch(e){}
+}
+async function loadDrivers(){
+  const {data,error}=await sb.from('drivers').select('*').eq('active',true).order('name');
+  if(error){console.warn(error);return;}
+  drivers=data||[];driverMap={};drivers.forEach(d=>driverMap[d.id]=d);
+  fillDrvPick();renderRosterChips();fillTmplTruck();
+}
+async function loadDeliveries(){
+  const {data,error}=await sb.from('deliveries').select('*').neq('status','delivered').order('created_at');
+  if(error){console.warn(error);return;}
+  deliveries=data||[];renderBoard();renderRun();
+}
+async function loadPositions(){
+  const {data}=await sb.from('driver_positions').select('*');
+  (data||[]).forEach(r=>positions[r.driver_id]=r); drawAllLive();renderLiveList();
+}
+function subscribe(){
+  if(rtChannel){ try{sb.removeChannel(rtChannel);}catch(e){} rtChannel=null; }
+  rtChannel=sb.channel('hub-rt')
+    .on('postgres_changes',{event:'*',schema:'public',table:'deliveries'},p=>{
+      const row=p.new||p.old;if(!row)return;
+      if(p.eventType==='DELETE') deliveries=deliveries.filter(d=>d.id!==row.id);
+      else{const i=deliveries.findIndex(d=>d.id===row.id);
+        if(row.status==='delivered'){if(i>=0)deliveries.splice(i,1);}
+        else if(i>=0)deliveries[i]=row;else deliveries.push(row);}
+      renderBoard();renderRun();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'driver_positions'},p=>{ if(p.new){positions[p.new.driver_id]=p.new;applyLive(p.new);renderLiveList();} })
+    .on('postgres_changes',{event:'*',schema:'public',table:'delivery_templates'},()=>{ loadTemplates(); })
+    .subscribe();
+}
+async function loadTemplates(){
+  const {data,error}=await sb.from('delivery_templates').select('*').eq('active',true).order('group_name',{nullsFirst:false}).order('created_at');
+  if(error){console.warn(error);return;}
+  templates=data||[];fillTmplTruck();renderTemplates();
+}
+
+/* ================= geocode ================= */
+let lastGeo=0;
+async function geocode(q){
+  const w=1100-(Date.now()-lastGeo);if(w>0)await new Promise(r=>setTimeout(r,w));lastGeo=Date.now();
+  const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),{headers:{Accept:'application/json'}});
+  const d=await r.json();return d.length?{lat:+d[0].lat,lng:+d[0].lon}:null;
+}
+function esc(s){return(s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ================= BOM (materials on a delivery) ================= */
+// a bom is an array of {item, qty, unit, packed}
+function bomArr(d){ return Array.isArray(d&&d.bom)?d.bom:[]; }
+function bomCount(d){ return bomArr(d).length; }
+function bomRowHtml(it){
+  return `<div class="row" data-bomrow style="gap:6px;margin-bottom:6px">
+    <input data-bi placeholder="Item (e.g. 3/4\" EMT)" value="${esc(it.item||'')}" style="flex:3">
+    <input data-bq placeholder="Qty" value="${it.qty!=null?esc(String(it.qty)):''}" style="flex:0 0 64px">
+    <input data-bu placeholder="Unit" value="${esc(it.unit||'')}" style="flex:0 0 74px">
+    <button class="mini x" data-brm style="flex:0 0 auto">✕</button>
+  </div>`;
+}
+let bomOnSave=null;
+function openBom(title, initial, onSave){
+  bomOnSave=onSave;
+  $('#bomTitle').textContent=title||'Materials';
+  const rows=$('#bomRows'); rows.innerHTML='';
+  const list=(Array.isArray(initial)&&initial.length)?initial:[{item:'',qty:'',unit:''}];
+  list.forEach(it=>rows.insertAdjacentHTML('beforeend',bomRowHtml(it)));
+  wireBomRows();
+  $('#bomModal').style.display='flex';
+}
+function wireBomRows(){ $('#bomRows').querySelectorAll('[data-brm]').forEach(b=>b.onclick=()=>{ b.closest('[data-bomrow]').remove(); }); }
+function readBom(){
+  const out=[];
+  $('#bomRows').querySelectorAll('[data-bomrow]').forEach(r=>{
+    const item=r.querySelector('[data-bi]').value.trim();
+    const qtyRaw=r.querySelector('[data-bq]').value.trim();
+    const unit=r.querySelector('[data-bu]').value.trim();
+    if(!item&&!qtyRaw&&!unit)return;
+    out.push({item, qty:qtyRaw===''?null:(isNaN(+qtyRaw)?qtyRaw:+qtyRaw), unit});
+  });
+  return out;
+}
+$('#bomAdd')&&($('#bomAdd').onclick=()=>{ $('#bomRows').insertAdjacentHTML('beforeend',bomRowHtml({item:'',qty:'',unit:''})); wireBomRows(); });
+$('#bomClose')&&($('#bomClose').onclick=()=>{ $('#bomModal').style.display='none'; bomOnSave=null; });
+$('#bomCancel')&&($('#bomCancel').onclick=()=>{ $('#bomModal').style.display='none'; bomOnSave=null; });
+$('#bomSave')&&($('#bomSave').onclick=()=>{ const b=readBom(); $('#bomModal').style.display='none'; const cb=bomOnSave; bomOnSave=null; if(cb)cb(b); });
+function bomListHtml(d){
+  const a=bomArr(d); if(!a.length)return '';
+  return `<div style="margin-top:6px;border-top:1px dashed var(--line);padding-top:6px">
+    ${a.map(it=>`<div style="font-size:12.5px;padding:1px 0">• ${esc(String(it.qty!=null?it.qty:''))}${it.unit?' '+esc(it.unit):''} ${esc(it.item)}</div>`).join('')}</div>`;
+}
+
+/* ================= intake ================= */
+let intakeBom=[];
+$('#iBom')&&($('#iBom').onclick=()=>openBom('Materials for this delivery',intakeBom,(b)=>{intakeBom=b;$('#iBomCount').textContent=b.length?b.length+' item'+(b.length!==1?'s':''):'';}));
+$('#iAdd').onclick=async()=>{
+  const address=$('#iAddr').value.trim();if(!address){alert('Enter an address.');return;}
+  const b=$('#iAdd');b.disabled=true;b.innerHTML='<span class="spin"></span> Adding…';
+  let g=null;try{g=await geocode(address);}catch(e){}
+  const row={job:$('#iJob').value.trim()||address.split(',')[0],address,lat:g?g.lat:null,lng:g?g.lng:null,
+    notes:$('#iNotes').value.trim(),priority:$('#iPri').value,requested_date:$('#iDate').value||null,
+    bom:intakeBom.length?intakeBom:null,
+    status:'unscheduled',created_by:me,updated_at:new Date().toISOString()};
+  const {data,error}=await sb.from('deliveries').insert(row).select().single();
+  b.disabled=false;b.textContent='Add to delivery queue';
+  if(error){$('#iMsg').textContent='Error: '+error.message;return;}
+  recent.unshift(data);renderRecent();
+  $('#iJob').value='';$('#iAddr').value='';$('#iNotes').value='';intakeBom=[];$('#iBomCount').textContent='';
+  $('#iMsg').textContent=g?'Added ✓ — on the board now.':'Added, but didn’t geocode — fix before optimizing.';
+};
+function renderRecent(){const box=$('#recentList');if(!recent.length){box.textContent='Nothing yet this session.';return;}
+  box.innerHTML=recent.slice(0,8).map(d=>`<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${esc(d.job)}</b> <span class="hint">${esc(d.address)}</span>${d.lat==null?' <span class="geo-warn">⚠</span>':''}</div>`).join('');}
+
+/* ================= pickups ================= */
+let pickupBom=[], pkRecent=[];
+function isPickup(d){ return d&&d.kind==='pickup'; }
+function kindTag(d){ return isPickup(d)?'<span class="tag pickup">pickup</span>':''; }
+function dropoffHtml(d){ return (isPickup(d)&&d.dropoff_address)?`<div class="addr" style="color:#6b3fa0">→ ${esc(d.dropoff_address)}</div>`:''; }
+$('#pkBom')&&($('#pkBom').onclick=()=>openBom('What to pick up',pickupBom,(b)=>{pickupBom=b;$('#pkBomCount').textContent=b.length?b.length+' item'+(b.length!==1?'s':''):'';}));
+$('#pkBackShop')&&($('#pkBackShop').onclick=()=>{ $('#pkDest').value=ls('adman_depot_addr')||DEPOT_DEFAULT; });
+$('#pkAdd')&&($('#pkAdd').onclick=async()=>{
+  const address=$('#pkFrom').value.trim();if(!address){alert('Enter a pickup location.');return;}
+  const b=$('#pkAdd');b.disabled=true;b.innerHTML='<span class="spin"></span> Adding…';
+  let g=null;try{g=await geocode(address);}catch(e){}
+  const dest=$('#pkDest').value.trim();
+  let dg=null; if(dest){ try{dg=await geocode(dest);}catch(e){} }
+  const row={job:$('#pkName').value.trim()||('Pickup — '+address.split(',')[0]),address,lat:g?g.lat:null,lng:g?g.lng:null,
+    kind:'pickup', dropoff_address:dest||null, dropoff_lat:dg?dg.lat:null, dropoff_lng:dg?dg.lng:null,
+    notes:$('#pkNotes').value.trim(),priority:$('#pkPri').value,requested_date:$('#pkDate').value||null,
+    bom:pickupBom.length?pickupBom:null, status:'unscheduled',created_by:me,updated_at:new Date().toISOString()};
+  const {data,error}=await sb.from('deliveries').insert(row).select().single();
+  b.disabled=false;b.textContent='Add pickup to board';
+  if(error){$('#pkMsg').textContent='Error: '+error.message;return;}
+  pkRecent.unshift(data);renderPkRecent();
+  $('#pkName').value='';$('#pkFrom').value='';$('#pkDest').value='';$('#pkNotes').value='';pickupBom=[];$('#pkBomCount').textContent='';
+  $('#pkMsg').textContent=g?'Pickup added ✓ — on the board now.':'Added, but pickup address didn’t geocode — fix before optimizing.';
+});
+function renderPkRecent(){const box=$('#pkRecentList');if(!box)return;if(!pkRecent.length){box.textContent='Nothing yet this session.';return;}
+  box.innerHTML=pkRecent.slice(0,8).map(d=>`<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${esc(d.job)}</b> <span class="hint">${esc(d.address)}${d.dropoff_address?' → '+esc(d.dropoff_address):''}</span></div>`).join('');}
+
+/* ================= board ================= */
+let dragId=null;
+$('#bDate').onchange=renderBoard;$('#bRefresh').onclick=loadDeliveries;
+$('#bDepotGeo').onclick=async()=>{const q=$('#bDepot').value.trim();if(!q)return;const b=$('#bDepotGeo');b.innerHTML='<span class="spin"></span>';
+  try{const g=await geocode(q);if(g){ls('adman_depot_addr',q);ls('adman_depot_lat',g.lat);ls('adman_depot_lng',g.lng);alert('Depot set.');}else alert('Not found.');}catch(e){alert('Geocode failed.');}b.textContent='Set';};
+function depot(){const la=+ls('adman_depot_lat'),ln=+ls('adman_depot_lng');return(isFinite(la)&&isFinite(ln)&&la)?{lat:la,lng:ln}:null;}
+function renderBoard(){
+  const date=$('#bDate').value;
+  const q=deliveries.filter(d=>d.status==='unscheduled').sort((a,b)=>(a.priority==='rush'?0:1)-(b.priority==='rush'?0:1)||String(a.requested_date).localeCompare(String(b.requested_date)));
+  $('#qCount').textContent=q.length+' waiting';
+  $('#queue').innerHTML=q.length?'':'<div class="hint">Queue is clear.</div>';
+  q.forEach(d=>$('#queue').appendChild(queueCard(d,date)));
+  const lanes=$('#lanes');lanes.innerHTML='';$('#noLanes').style.display=drivers.length?'none':'block';
+  drivers.forEach(dr=>{const stops=deliveries.filter(d=>d.driver_id===dr.id&&d.scheduled_date===date&&d.status!=='unscheduled').sort((a,b)=>(a.seq??999)-(b.seq??999));lanes.appendChild(laneEl(dr,stops,date));});
+  if(liveMap&&$('#vMap')&&$('#vMap').classList.contains('on'))renderPlan();
+}
+function queueCard(d,date){
+  const el=document.createElement('div');el.className='dcard';
+  const sched=canSched();
+  const bc=bomCount(d);
+  el.innerHTML=`<div class="job">${esc(d.job)} ${kindTag(d)}${d.priority==='rush'?'<span class="tag rush">rush</span>':''}${bc?`<span class="tag st-scheduled">${bc} item${bc!==1?'s':''}</span>`:''}</div>
+    <div class="addr">${isPickup(d)?'⬆ ':''}${esc(d.address)}${d.lat==null?' <span class="geo-warn">⚠</span>':''}</div>
+    ${dropoffHtml(d)}
+    ${bomListHtml(d)}
+    <div class="foot">${sched?`<select class="mini" data-truck style="max-width:130px"></select><button class="mini" data-sched>Schedule ▸</button><button class="mini" data-bom>${bc?'Edit BOM':'＋ BOM'}</button>`:''}${d.created_by?`<span class="hint">by ${esc(d.created_by)}</span>`:''}</div>`;
+  if(sched){
+    const sel=el.querySelector('[data-truck]');drivers.forEach(dr=>{const o=document.createElement('option');o.value=dr.id;o.textContent=dr.name;sel.appendChild(o);});
+    el.querySelector('[data-sched]').onclick=()=>{if(!sel.value){alert('Add a truck under Roster first.');return;}schedule(d,sel.value,date);};
+    el.querySelector('[data-bom]').onclick=()=>openBom('Materials — '+(d.job||''),bomArr(d),(b)=>update(d.id,{bom:b.length?b:null}));
+  }
+  return el;
+}
+function laneEl(dr,stops,date){
+  const lane=document.createElement('div');lane.className='lane';
+  const sched=canSched();
+  lane.innerHTML=`<div class="lane-h"><span class="c" style="background:${dr.color}"></span><span class="nm">${esc(dr.name)}</span><span class="ct">${stops.length} stop${stops.length!==1?'s':''}</span></div><div class="lane-body"></div>${sched?`<div class="lane-foot btnbar"><button class="btn ghost sm" data-opt>Optimize</button><button class="btn sm" data-dispatch>Dispatch all</button></div>`:''}`;
+  const body=lane.querySelector('.lane-body');body.ondragover=e=>e.preventDefault();
+  if(sched) body.ondrop=e=>{e.preventDefault();if(dragId){reorderInto(dragId,dr.id,date);dragId=null;}};
+  stops.forEach((d,ix)=>body.appendChild(laneCard(d,ix,stops,date)));
+  if(sched){
+    lane.querySelector('[data-opt]').onclick=()=>optimizeLane(dr.id,date);
+    lane.querySelector('[data-dispatch]').onclick=()=>stops.forEach(s=>{if(s.status==='scheduled')setStatus(s,'out');});
+  }
+  return lane;
+}
+function laneCard(d,ix,stops,date){
+  const el=document.createElement('div');el.className='dcard';
+  const sched=canSched();el.draggable=sched;
+  if(sched){el.ondragstart=()=>{dragId=d.id;el.classList.add('drag');};el.ondragend=()=>el.classList.remove('drag');
+    el.ondrop=e=>{e.preventDefault();if(!dragId||dragId===d.id)return;reorder(dragId,d.id,stops);dragId=null;};el.ondragover=e=>e.preventDefault();}
+  const bc=bomCount(d);
+  el.innerHTML=`<div class="job"><span class="seqn">${ix+1}</span> ${esc(d.job)} ${kindTag(d)}${d.priority==='rush'?'<span class="tag rush">rush</span>':''}${bc?`<span class="tag st-scheduled">${bc} item${bc!==1?'s':''}</span>`:''}</div>
+    <div class="addr">${isPickup(d)?'⬆ ':''}${esc(d.address)}</div>
+    ${dropoffHtml(d)}
+    ${bomListHtml(d)}
+    <div class="foot"><span class="tag st-${d.status}">${d.status}</span>
+      ${sched?`<button class="mini" data-up>▲</button><button class="mini" data-dn>▼</button><button class="mini" data-bom>${bc?'BOM':'＋BOM'}</button>${d.status==='out'?'<button class="mini" data-done>Delivered ✓</button>':'<button class="mini" data-out>Dispatch</button>'}<button class="mini x" data-back>↩ queue</button>`:''}</div>`;
+  if(sched){
+    el.querySelector('[data-up]').onclick=()=>moveSeq(ix,-1,stops);
+    el.querySelector('[data-dn]').onclick=()=>moveSeq(ix,1,stops);
+    el.querySelector('[data-bom]').onclick=()=>openBom('Materials — '+(d.job||''),bomArr(d),(b)=>update(d.id,{bom:b.length?b:null}));
+    el.querySelector('[data-back]').onclick=()=>unschedule(d);
+    const out=el.querySelector('[data-out]');if(out)out.onclick=()=>setStatus(d,'out');
+    const done=el.querySelector('[data-done]');if(done)done.onclick=()=>setStatus(d,'delivered');
+  }
+  return el;
+}
+async function schedule(d,driverId,date){const n=deliveries.filter(x=>x.driver_id===driverId&&x.scheduled_date===date&&x.status!=='unscheduled').length;await update(d.id,{driver_id:driverId,scheduled_date:date,status:'scheduled',seq:n});}
+async function unschedule(d){await update(d.id,{driver_id:null,scheduled_date:null,status:'unscheduled',seq:null});}
+async function setStatus(d,status){await update(d.id,{status});}
+async function moveSeq(ix,dir,stops){const j=ix+dir;if(j<0||j>=stops.length)return;const a=stops.slice();[a[ix],a[j]]=[a[j],a[ix]];await writeSeq(a);}
+async function reorder(fromId,toId,stops){const a=stops.slice();const fi=a.findIndex(s=>s.id===fromId),ti=a.findIndex(s=>s.id===toId);if(fi<0||ti<0)return;const m=a.splice(fi,1)[0];a.splice(ti,0,m);await writeSeq(a);}
+async function reorderInto(fromId,driverId,date){ // drop onto empty lane area → append to that lane
+  const d=deliveries.find(x=>x.id===fromId);if(!d)return;
+  if(d.driver_id===driverId&&d.scheduled_date===date)return;
+  await schedule(d,driverId,date);
+}
+async function writeSeq(ordered){for(let i=0;i<ordered.length;i++){const d=ordered[i];if(d.seq!==i){d.seq=i;await update(d.id,{seq:i},true);}}renderBoard();}
+async function update(id,patch,quiet){
+  patch.updated_at=new Date().toISOString();
+  const i=deliveries.findIndex(d=>d.id===id);if(i>=0)deliveries[i]={...deliveries[i],...patch};
+  if(!quiet){renderBoard();renderRun();}
+  const {error}=await sb.from('deliveries').update(patch).eq('id',id);if(error)console.warn('update failed',error);
+}
+
+/* ================= optimize ================= */
+function hav(a,b){const R=3958.8,tr=d=>d*Math.PI/180;const dLat=tr(b.lat-a.lat),dLng=tr(b.lng-a.lng);const h=Math.sin(dLat/2)**2+Math.cos(tr(a.lat))*Math.cos(tr(b.lat))*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+function rlen(dep,arr){let t=0,p=dep;for(const s of arr){t+=hav(p,s);p=s;}return t+hav(p,dep);}
+function nn(dep,arr){const rem=[...arr],out=[];let c=dep;while(rem.length){let bi=0,bd=Infinity;rem.forEach((s,i)=>{const d=hav(c,s);if(d<bd){bd=d;bi=i;}});c=rem[bi];out.push(c);rem.splice(bi,1);}return out;}
+function twoOpt(dep,arr){let best=arr.slice(),imp=true,g=0;while(imp&&g++<60){imp=false;for(let i=0;i<best.length-1;i++)for(let k=i+1;k<best.length;k++){const c=best.slice(0,i).concat(best.slice(i,k+1).reverse(),best.slice(k+1));if(rlen(dep,c)<rlen(dep,best)-1e-9){best=c;imp=true;}}}return best;}
+async function optimizeLane(driverId,date){
+  const dep=depot();if(!dep){alert('Set the depot address first (top of board).');return;}
+  const stops=deliveries.filter(d=>d.driver_id===driverId&&d.scheduled_date===date&&d.status!=='unscheduled');
+  const geo=stops.filter(s=>s.lat!=null),nogeo=stops.filter(s=>s.lat==null);
+  if(!geo.length){alert('No geocoded stops to optimize in this lane.');return;}
+  const ordered=twoOpt(dep,nn(dep,geo.map(s=>({...s,lat:+s.lat,lng:+s.lng})))).concat(nogeo);
+  await writeSeq(ordered);
+}
+
+/* ================= roster ================= */
+function renderRosterChips(){
+  const box=$('#rosterChips');if(!box)return;
+  box.innerHTML=drivers.length?'':'<span class="hint">No trucks yet — add one below.</span>';
+  drivers.forEach(d=>{const c=document.createElement('span');c.className='chip';
+    c.innerHTML=`<span class="c" style="background:${d.color}"></span>${esc(d.name)}`;
+    const rm=document.createElement('button');rm.className='rm';rm.textContent='×';
+    rm.onclick=async()=>{if(confirm('Retire '+d.name+'?')){await sb.from('drivers').update({active:false}).eq('id',d.id);loadDrivers();}};
+    c.appendChild(rm);box.appendChild(c);});
+}
+$('#addDriver').onclick=async()=>{
+  const name=$('#newDriverName').value.trim();if(!name)return;
+  const b=$('#addDriver');b.disabled=true;
+  const {error}=await sb.from('drivers').insert({name,color:$('#newDriverColor').value});b.disabled=false;
+  if(error){alert('Could not add: '+error.message);return;}
+  $('#newDriverName').value='';loadDrivers();
+};
+function fillDrvPick(){const sel=$('#drvPick');if(!sel)return;const prev=ls('adman_driver_id')||sel.value;sel.innerHTML='';drivers.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.name;sel.appendChild(o);});if(prev)sel.value=prev;}
+
+/* ================= drive: share + run ================= */
+let watchId=null,wakeLock=null,lastSent=0,lastPos=null,sharing=false;
+$('#drvPick').onchange=e=>{ls('adman_driver_id',e.target.value);renderRun();};
+$('#drvDate').onchange=renderRun;
+function metersBetween(a,b){const R=6371000,tr=d=>d*Math.PI/180;const dLat=tr(b.lat-a.lat),dLng=tr(b.lng-a.lng);const h=Math.sin(dLat/2)**2+Math.cos(tr(a.lat))*Math.cos(tr(b.lat))*Math.sin(dLng/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+async function keepAwake(){try{if('wakeLock'in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(sharing&&document.visibilityState==='visible')keepAwake();});
+$('#drvToggle').onclick=()=>sharing?stopSharing():startSharing();
+function startSharing(){
+  const id=$('#drvPick').value;if(!id){alert('Pick your truck (add one under Roster if empty).');return;}
+  if(!('geolocation'in navigator)){alert('No geolocation on this device.');return;}
+  ls('adman_driver_id',id);sharing=true;setDrvUI(true);keepAwake();
+  watchId=navigator.geolocation.watchPosition(onPos,onGeoErr,{enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+}
+function stopSharing(){sharing=false;setDrvUI(false);if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null;}if(wakeLock){try{wakeLock.release();}catch(e){}wakeLock=null;}}
+function setDrvUI(on){$('#drvDot').classList.toggle('live',on);$('#drvState').textContent=on?'Live':'Off';$('#drvToggle').textContent=on?'Stop sharing':'Start sharing';$('#drvToggle').classList.toggle('red',!on);if(!on)$('#drvMeta').textContent='Not sharing location';}
+function onGeoErr(err){$('#drvMeta').textContent=err.code===1?'Permission denied — enable location.':'Waiting for GPS…';}
+async function onPos(p){
+  const c=p.coords,now=Date.now(),cur={lat:c.latitude,lng:c.longitude};
+  const moved=lastPos?metersBetween(lastPos,cur):Infinity;
+  if(now-lastSent<UPSERT_MS&&moved<MOVE_M)return;
+  lastSent=now;lastPos=cur;
+  const row={driver_id:$('#drvPick').value,lat:cur.lat,lng:cur.lng,heading:c.heading,speed:c.speed,accuracy:c.accuracy,updated_at:new Date().toISOString()};
+  const {error}=await sb.from('driver_positions').upsert(row,{onConflict:'driver_id'});
+  $('#drvMeta').textContent=error?('Send failed: '+error.message):('Sent '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})+' · ±'+Math.round(c.accuracy||0)+'m');
+}
+function renderRun(){
+  const id=$('#drvPick').value,date=$('#drvDate').value;
+  const stops=deliveries.filter(d=>d.driver_id===id&&d.scheduled_date===date&&d.status!=='unscheduled').sort((a,b)=>(a.seq??999)-(b.seq??999));
+  $('#runEmpty').style.display=stops.length?'none':'block';
+  const box=$('#runList');box.innerHTML='';
+  stops.forEach((d,ix)=>{const el=document.createElement('div');el.className='dcard';
+    const a=bomArr(d);
+    const pk=isPickup(d);
+    const bomBlock = a.length ? `<div style="margin-top:7px;border-top:1px dashed var(--line);padding-top:7px">
+        <div class="hint" style="margin-bottom:4px">${pk?'Pick-up list':'Load list'} (${a.filter(x=>x.packed).length}/${a.length})</div>
+        ${a.map((it,bi)=>`<label class="lmtoggle" style="display:flex;font-size:13px;margin-bottom:3px"><input type="checkbox" data-bom="${bi}"${it.packed?' checked':''}> <span>${esc(String(it.qty!=null?it.qty:''))}${it.unit?' '+esc(it.unit):''} ${esc(it.item)}</span></label>`).join('')}
+      </div>` : '';
+    const navPickup=`https://www.google.com/maps/dir/?api=1&destination=${d.lat!=null?d.lat+','+d.lng:encodeURIComponent(d.address)}`;
+    const navDrop = (pk&&d.dropoff_address)?`https://www.google.com/maps/dir/?api=1&destination=${d.dropoff_lat!=null?d.dropoff_lat+','+d.dropoff_lng:encodeURIComponent(d.dropoff_address)}`:null;
+    el.innerHTML=`<div class="job"><span class="seqn">${ix+1}</span> ${esc(d.job)} ${kindTag(d)}${d.priority==='rush'?'<span class="tag rush">rush</span>':''}</div>
+      <div class="addr">${pk?'⬆ Pick up at: ':''}${esc(d.address)}</div>
+      ${pk&&d.dropoff_address?`<div class="addr" style="color:#6b3fa0">→ Deliver to: ${esc(d.dropoff_address)}</div>`:''}
+      ${d.notes?`<div class="hint" style="margin-top:3px">${esc(d.notes)}</div>`:''}
+      ${bomBlock}
+      <div class="foot"><span class="tag st-${d.status}">${d.status}</span>
+        <a class="mini" target="_blank" href="${navPickup}">${pk?'Nav to pickup ▸':'Navigate ▸'}</a>
+        ${navDrop?`<a class="mini" target="_blank" href="${navDrop}">Nav to dropoff ▸</a>`:''}
+        ${d.status!=='delivered'?`<button class="mini" data-done>${pk?'Done ✓':'Delivered ✓'}</button>`:''}</div>`;
+    el.querySelectorAll('[data-bom]').forEach(cb=>{ cb.onchange=()=>{
+      const bi=+cb.getAttribute('data-bom'); const arr=bomArr(d).map((x,i)=>i===bi?{...x,packed:cb.checked}:x);
+      update(d.id,{bom:arr},true);
+    };});
+    const done=el.querySelector('[data-done]');if(done)done.onclick=()=>setStatus(d,'delivered');
+    box.appendChild(el);});
+}
+
+/* ================= routines / repeated deliveries ================= */
+function fillTmplTruck(){const sel=$('#tTruck');if(!sel)return;const prev=sel.value;sel.innerHTML='<option value="">— None (goes to queue) —</option>';drivers.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.name;sel.appendChild(o);});if(prev)sel.value=prev;}
+$('#tAdd').onclick=async()=>{
+  const address=$('#tAddr').value.trim();if(!address){alert('Enter an address.');return;}
+  const b=$('#tAdd');b.disabled=true;b.innerHTML='<span class="spin"></span> Saving…';
+  let g=null;try{g=await geocode(address);}catch(e){}
+  const row={name:$('#tName').value.trim()||address.split(',')[0],address,lat:g?g.lat:null,lng:g?g.lng:null,
+    notes:$('#tNotes').value.trim(),priority:$('#tPri').value,default_driver_id:$('#tTruck').value||null,
+    group_name:$('#tGroup').value.trim()||null,created_by:me};
+  const {error}=await sb.from('delivery_templates').insert(row);
+  b.disabled=false;b.textContent='Save routine';
+  if(error){$('#tMsg').textContent='Error: '+error.message;return;}
+  $('#tName').value='';$('#tAddr').value='';$('#tNotes').value='';
+  $('#tMsg').textContent=g?'Saved ✓':'Saved, but didn’t geocode — edit the address later.';
+  loadTemplates();
+};
+function renderTemplates(){
+  const box=$('#tmplList');if(!box)return;
+  $('#tmplEmpty').style.display=templates.length?'none':'block';
+  box.innerHTML='';
+  const groups={};templates.forEach(t=>{(groups[t.group_name||'Ungrouped']=groups[t.group_name||'Ungrouped']||[]).push(t);});
+  Object.keys(groups).forEach(gname=>{
+    const wrap=document.createElement('div');wrap.style.marginBottom='16px';
+    const head=document.createElement('div');head.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px';
+    head.innerHTML=`<h3 style="font-size:15px;text-transform:uppercase;letter-spacing:.03em">${esc(gname)}</h3><span class="hint">${groups[gname].length} stop${groups[gname].length!==1?'s':''}</span>`;
+    const runAll=document.createElement('button');runAll.className='btn sm';runAll.style.marginLeft='auto';runAll.textContent='Run all ▸';
+    runAll.onclick=()=>runGroup(groups[gname]);head.appendChild(runAll);
+    wrap.appendChild(head);
+    groups[gname].forEach(t=>wrap.appendChild(tmplCard(t)));
+    box.appendChild(wrap);
+  });
+}
+function tmplCard(t){
+  const dr=t.default_driver_id?driverMap[t.default_driver_id]:null;
+  const el=document.createElement('div');el.className='dcard';
+  el.innerHTML=`<div class="job">${esc(t.name)} ${t.priority==='rush'?'<span class="tag rush">rush</span>':''}${dr?`<span class="tag" style="background:${dr.color}22;color:${dr.color}">${esc(dr.name)}</span>`:''}</div>
+    <div class="addr">${esc(t.address)}${t.lat==null?' <span class="geo-warn">⚠ not geocoded</span>':''}</div>
+    ${t.notes?`<div class="hint" style="margin-top:2px">${esc(t.notes)}</div>`:''}
+    <div class="foot"><button class="mini" data-run>Run ▸</button><button class="mini x" data-del>Delete</button></div>`;
+  el.querySelector('[data-run]').onclick=()=>runGroup([t]);
+  el.querySelector('[data-del]').onclick=async()=>{if(confirm('Delete this routine?')){await sb.from('delivery_templates').update({active:false}).eq('id',t.id);loadTemplates();}};
+  return el;
+}
+async function runGroup(list){
+  const date=$('#tRunDate').value||todayStr();
+  let made=0,skipped=0;
+  for(const t of list){
+    const dup=deliveries.some(d=>d.address===t.address&&(d.requested_date===date||d.scheduled_date===date)&&d.status!=='delivered');
+    if(dup){skipped++;continue;}
+    const row={job:t.name,address:t.address,lat:t.lat,lng:t.lng,notes:t.notes,priority:t.priority,
+      requested_date:date,created_by:me,updated_at:new Date().toISOString()};
+    if(t.default_driver_id){
+      const n=deliveries.filter(x=>x.driver_id===t.default_driver_id&&x.scheduled_date===date&&x.status!=='unscheduled').length;
+      Object.assign(row,{driver_id:t.default_driver_id,scheduled_date:date,status:'scheduled',seq:n+made});
+    } else Object.assign(row,{status:'unscheduled'});
+    const {data,error}=await sb.from('deliveries').insert(row).select().single();
+    if(error){console.warn(error);continue;}
+    if(!deliveries.find(d=>d.id===data.id))deliveries.push(data);
+    made++;
+  }
+  renderBoard();renderRun();if(liveMap&&$('#vMap').classList.contains('on'))renderPlan();
+  $('#tMsg').textContent=`Ran ${made} onto ${date}${skipped?` · skipped ${skipped} already there`:''}.`;
+  alert(`Added ${made} deliver${made===1?'y':'ies'} to ${date}${skipped?`. Skipped ${skipped} already on the board for that day.`:'.'}`);
+}
+$('#tRunDate')&&($('#tRunDate').value=todayStr());
+
+/* ================= supply houses / stores (POIs) ================= */
+const POI_CATS={
+  elec:{label:'Electrical',color:'#bd1d23',glyph:'E'},
+  supply:{label:'Supply',color:'#0d7d8f',glyph:'S'},
+  bigbox:{label:'Big box',color:'#b06a00',glyph:'B'},
+  auto:{label:'Auto parts',color:'#6b3fa0',glyph:'A'}
+};
+const POIS=[{"id": "e1", "cat": "elec", "name": "Chattanooga Electric Supply Co", "addr": "3100 S Orchard Knob Ave, Chattanooga, TN 37407"}, {"id": "e2", "cat": "elec", "name": "City Electric Supply Chattanooga", "addr": "1017 Taft Ave, Chattanooga, TN 37408"}, {"id": "e3", "cat": "elec", "name": "City Electric Supply Chattanooga East", "addr": "7331 Lee Hwy, Chattanooga, TN 37421"}, {"id": "e4", "cat": "elec", "name": "City Electric Supply Cleveland TN", "addr": "436 Broad St SW, Cleveland, TN 37311"}, {"id": "e5", "cat": "elec", "name": "Gexpro Chattanooga", "addr": "2800 Amnicola Hwy, Chattanooga, TN 37406"}, {"id": "e6", "cat": "elec", "name": "SESCO Electrical Supply", "addr": "2150 Amnicola Hwy, Chattanooga, TN 37406"}, {"id": "e7", "cat": "elec", "name": "Graybar Chattanooga", "addr": "6013 John Douglass Dr, Chattanooga, TN 37404"}, {"id": "e8", "cat": "elec", "name": "Wesco Distribution", "addr": "1709 N Orchard Knob Ave, Chattanooga, TN 37406"}, {"id": "e9", "cat": "elec", "name": "Electric Motor Sales", "addr": "1724 Central Ave, Chattanooga, TN 37408"}, {"id": "e10", "cat": "elec", "name": "Kendall Electric", "addr": "2395 Shady Ln, Cleveland, TN 37312"}, {"id": "e11", "cat": "elec", "name": "Glaze Supply Co", "addr": "361 Broad St SW, Cleveland, TN 37311"}, {"id": "e12", "cat": "elec", "name": "Wright Electrical Supply", "addr": "2403 Briarwood Ave SW, Fort Payne, AL 35967"}, {"id": "s1", "cat": "supply", "name": "Wholesale Supply Group", "addr": "2411 E 23rd St, Chattanooga, TN 37407"}, {"id": "s2", "cat": "supply", "name": "Wholesale Supply Group", "addr": "885 Keith St NW, Cleveland, TN 37311"}, {"id": "s3", "cat": "supply", "name": "Hajoca", "addr": "1310 E 14th St, Chattanooga, TN 37404"}, {"id": "s4", "cat": "supply", "name": "Chattanooga Noland", "addr": "4005 Industry Dr, Chattanooga, TN 37416"}, {"id": "s5", "cat": "supply", "name": "Southern Pipe & Supply", "addr": "2835 Hickory Valley Rd, Chattanooga, TN 37421"}, {"id": "s6", "cat": "supply", "name": "Kenny Pipe & Supply", "addr": "1271 N Holtzclaw Ave, Chattanooga, TN 37406"}, {"id": "s7", "cat": "supply", "name": "Piping Supply Company & AMS Utility", "addr": "3008 N Hickory St, Chattanooga, TN 37406"}, {"id": "s8", "cat": "supply", "name": "Ferguson Home", "addr": "3375 Old Tasso Rd NE, Cleveland, TN 37312"}, {"id": "s9", "cat": "supply", "name": "Ferguson Industrial", "addr": "525 Benjamin Way, Dalton, GA 30721"}, {"id": "s10", "cat": "supply", "name": "Southern Pipe & Supply", "addr": "411 E 2nd Ave, Rome, GA 30161"}, {"id": "s11", "cat": "supply", "name": "R & B Supply", "addr": "250 E Ware St, Cedartown, GA 30125"}, {"id": "s12", "cat": "supply", "name": "Southern Pipe & Supply Co", "addr": "510 S Tennessee St, Cartersville, GA 30120"}, {"id": "s13", "cat": "supply", "name": "Walter A. Wood Supply", "addr": "4509 Rossville Blvd, Chattanooga, TN 37407"}, {"id": "s14", "cat": "supply", "name": "T T Wilson Co", "addr": "1255 Central Ave, Chattanooga, TN 37408"}, {"id": "s15", "cat": "supply", "name": "River Bend Materials", "addr": "4300 Amnicola Hwy, Chattanooga, TN 37406"}, {"id": "s16", "cat": "supply", "name": "Builders FirstSource", "addr": "6006 Lee Hwy, Chattanooga, TN 37421"}, {"id": "s17", "cat": "supply", "name": "Best Buy Metals Chattanooga", "addr": "2300 E 23rd St, Chattanooga, TN 37407"}, {"id": "s18", "cat": "supply", "name": "Metal Supermarkets Chattanooga", "addr": "6225 Vance Rd #113, Chattanooga, TN 37421"}, {"id": "s19", "cat": "supply", "name": "Best Buy Metals Cleveland", "addr": "1652 S Lee Hwy, Cleveland, TN 37311"}, {"id": "s20", "cat": "supply", "name": "Pioneer Metal Depot", "addr": "4285 Old Tasso Rd NE, Cleveland, TN 37312"}, {"id": "s21", "cat": "supply", "name": "Tindell's Building Materials", "addr": "205 20th St SE, Cleveland, TN 37311"}, {"id": "s22", "cat": "supply", "name": "Cleveland Plywood Co", "addr": "2700 20th St NE, Cleveland, TN 37323"}, {"id": "s23", "cat": "supply", "name": "Southeastern Farmers Co-op", "addr": "2615 Blue Springs Rd SE, Cleveland, TN 37311"}, {"id": "s24", "cat": "supply", "name": "Hydraulic Supply Company", "addr": "5959 Shallowford Rd, Chattanooga, TN 37421"}, {"id": "b1", "cat": "bigbox", "name": "Curt's Ace Hardware", "addr": "116 Whitewater Dr, Ocoee, TN 37361"}, {"id": "b2", "cat": "bigbox", "name": "Elder's Ace Hardware - Dayton Blvd", "addr": "1870 Dayton Blvd, Chattanooga, TN 37405"}, {"id": "b3", "cat": "bigbox", "name": "Elder's Ace Hardware - East Ridge", "addr": "3502 Ringgold Rd, Chattanooga, TN 37412"}, {"id": "b4", "cat": "bigbox", "name": "Elder's Ace Hardware - Ooltewah", "addr": "9231 Lee Hwy, Ooltewah, TN 37363"}, {"id": "b5", "cat": "bigbox", "name": "Lowe's Chattanooga #0425", "addr": "2180 Gunbarrel Rd, Chattanooga, TN 37421"}, {"id": "b6", "cat": "bigbox", "name": "Lowe's Dalton #1646", "addr": "1212 Cleveland Hwy, Dalton, GA 30721"}, {"id": "b7", "cat": "bigbox", "name": "Lowe's Rome #1513", "addr": "2338 Shorter Ave NW, Rome, GA 30165"}, {"id": "b8", "cat": "bigbox", "name": "Lowe's Fort Payne #1786", "addr": "1600 Glenn Blvd SW, Fort Payne, AL 35968"}, {"id": "b9", "cat": "bigbox", "name": "Lowe's Crossville #0548", "addr": "2431 N Main St, Crossville, TN 38555"}, {"id": "b10", "cat": "bigbox", "name": "Lowe's Athens #1196", "addr": "1751 Congress Pkwy S, Athens, TN 37303"}, {"id": "b11", "cat": "bigbox", "name": "Walmart Supercenter Cleveland #5263", "addr": "2300 Treasury Dr SE, Cleveland, TN 37323"}, {"id": "b12", "cat": "bigbox", "name": "Walmart Supercenter Cleveland #698", "addr": "4495 Keith St NW, Cleveland, TN 37312"}, {"id": "b13", "cat": "bigbox", "name": "Walmart Supercenter Fort Payne #691", "addr": "2001 Glenn Blvd SW, Fort Payne, AL 35968"}, {"id": "b14", "cat": "bigbox", "name": "Walmart Supercenter Rome #5151", "addr": "825 Cartersville Hwy SE, Rome, GA 30161"}, {"id": "b15", "cat": "bigbox", "name": "Walmart Supercenter Rome #658", "addr": "2510 Redmond Cir NW, Rome, GA 30165"}, {"id": "b16", "cat": "bigbox", "name": "Walmart Supercenter Dalton #669", "addr": "2545 E Walnut Ave, Dalton, GA 30721"}, {"id": "b17", "cat": "bigbox", "name": "Walmart Supercenter Dalton #5173", "addr": "815 Shugart Rd, Dalton, GA 30720"}, {"id": "b18", "cat": "bigbox", "name": "Walmart Supercenter Crossville #687", "addr": "168 Obed Plz Ste 108, Crossville, TN 38555"}, {"id": "a1", "cat": "auto", "name": "Advance Auto Parts Chattanooga #8327", "addr": "4011 Brainerd Rd #115, Chattanooga, TN 37411"}, {"id": "a2", "cat": "auto", "name": "Advance Auto Parts Chattanooga #3500", "addr": "7621 E Brainerd Rd, Chattanooga, TN 37421"}, {"id": "a3", "cat": "auto", "name": "Advance Auto Parts Chattanooga #3590", "addr": "4970 Highway 58, Chattanooga, TN 37416"}, {"id": "a4", "cat": "auto", "name": "Advance Auto Parts East Ridge #3360", "addr": "4405 Ringgold Rd, East Ridge, TN 37412"}, {"id": "a5", "cat": "auto", "name": "Advance Auto Parts Cleveland #3550", "addr": "903 Keith St NW, Cleveland, TN 37311"}, {"id": "a6", "cat": "auto", "name": "Advance Auto Parts Cleveland #6312", "addr": "2349 McGrady Dr SE, Cleveland, TN 37323"}, {"id": "a7", "cat": "auto", "name": "O'Reilly Auto Parts Chattanooga #1043", "addr": "4400 Rossville Blvd, Chattanooga, TN 37407"}, {"id": "a8", "cat": "auto", "name": "O'Reilly Auto Parts Chattanooga #935", "addr": "1740 E 23rd St, Chattanooga, TN 37407"}, {"id": "a9", "cat": "auto", "name": "O'Reilly Auto Parts Chattanooga #1032", "addr": "8126 E Brainerd Rd, Chattanooga, TN 37421"}, {"id": "a10", "cat": "auto", "name": "NAPA Auto Parts Chattanooga", "addr": "2225 E 23rd St, Chattanooga, TN 37407"}, {"id": "a11", "cat": "auto", "name": "Auto Plus Cleveland", "addr": "360 Central Ave NE, Cleveland, TN 37311"}];
+let poiCoords={}, poiLayer=null, geocoding=false, geoAgain=false;
+function poiCacheGet(id){const v=ls('adman_poi_'+id);if(v){const p=v.split(',');return{lat:+p[0],lng:+p[1]};}return null;}
+function poiCatOn(cat){return ({elec:$('#poiElec'),supply:$('#poiSupply'),bigbox:$('#poiBig'),auto:$('#poiAuto')}[cat]||{checked:false}).checked;}
+async function geocodePois(){
+  if(geocoding){geoAgain=true;return;}
+  geocoding=true;
+  do{
+    geoAgain=false;
+    for(const p of POIS){
+      if(poiCoords[p.id]||!poiCatOn(p.cat))continue;   // only geocode categories that are toggled on
+      const c=poiCacheGet(p.id);
+      if(c){poiCoords[p.id]=c;continue;}
+      try{ const g=await geocode(p.addr); if(g){poiCoords[p.id]=g;ls('adman_poi_'+p.id,g.lat+','+g.lng);if(liveMap&&$('#vMap').classList.contains('on'))renderPois();} }catch(e){}
+    }
+  }while(geoAgain);
+  geocoding=false;
+  renderPois();
+}
+function renderPois(){
+  if(!liveMap)return;
+  if(!poiLayer)poiLayer=L.layerGroup().addTo(liveMap);
+  poiLayer.clearLayers();
+  const on={elec:$('#poiElec').checked,supply:$('#poiSupply').checked,bigbox:$('#poiBig').checked,auto:$('#poiAuto').checked};
+  POIS.forEach(p=>{
+    if(!on[p.cat])return;
+    const c=poiCoords[p.id];if(!c)return;
+    const meta=POI_CATS[p.cat];
+    const icon=L.divIcon({className:'poi-pin',html:`<div style="background:${meta.color}">${meta.glyph}</div>`,iconSize:[22,22],iconAnchor:[11,11]});
+    L.marker([c.lat,c.lng],{icon}).addTo(poiLayer).bindPopup(poiPopup(p,c));
+  });
+}
+function poiPopup(p,c){
+  const meta=POI_CATS[p.cat];
+  const wrap=document.createElement('div');wrap.style.minWidth='180px';
+  wrap.innerHTML=`<b>${esc(p.name)}</b><br><span style="color:#5b6b7a;font-size:12px">${esc(p.addr)}</span><br><span class="tag" style="background:${meta.color}22;color:${meta.color};margin-top:4px;display:inline-block">${meta.label}</span><div class="poi-actions" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"></div>`;
+  const box=wrap.querySelector('.poi-actions');
+  if(canSched()&&drivers.length){
+    const sel=document.createElement('select');sel.className='mini';
+    drivers.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.name;sel.appendChild(o);});
+    const add=document.createElement('button');add.className='mini';add.textContent='Add to truck';
+    add.onclick=()=>poiAdd(p,c,sel.value);
+    box.appendChild(sel);box.appendChild(add);
+  }
+  const q=document.createElement('button');q.className='mini';q.textContent='＋ Queue';
+  q.onclick=()=>poiAdd(p,c,null);
+  box.appendChild(q);
+  return wrap;
+}
+async function poiAdd(p,c,driverId){
+  const date=$('#liveDate').value||todayStr();
+  const row={job:p.name,address:p.addr,lat:c.lat,lng:c.lng,notes:POI_CATS[p.cat].label+' — pickup',priority:'normal',requested_date:date,created_by:me,updated_at:new Date().toISOString()};
+  if(driverId){const n=deliveries.filter(x=>x.driver_id===driverId&&x.scheduled_date===date&&x.status!=='unscheduled').length;Object.assign(row,{driver_id:driverId,scheduled_date:date,status:'scheduled',seq:n});}
+  else Object.assign(row,{status:'unscheduled'});
+  const {data,error}=await sb.from('deliveries').insert(row).select().single();
+  if(error){alert('Could not add: '+error.message);return;}
+  if(!deliveries.find(d=>d.id===data.id))deliveries.push(data);
+  renderBoard();if($('#vMap').classList.contains('on'))renderPlan();
+  liveMap.closePopup();
+  alert(p.name+(driverId?(' → '+((driverMap[driverId]||{}).name||'truck')):' → queue')+' for '+date+'.');
+}
+['#poiElec','#poiSupply','#poiBig','#poiAuto'].forEach(id=>{const el=$(id);if(el)el.onchange=()=>{geocodePois();renderPois();};});
+
+/* ================= live map ================= */
+let liveMap=null,liveLayer=null,planLayer=null,markers={},trails={},routeCache={},planGen=0;
+function ensureLiveMap(){if(liveMap)return;liveMap=L.map('livemap').setView([35.0456,-85.3097],11);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(liveMap);planLayer=L.layerGroup().addTo(liveMap);liveLayer=L.layerGroup().addTo(liveMap);}
+function drawAllLive(){if(!liveMap)return;Object.values(positions).forEach(applyLive);renderPlan();renderPois();fitAll();}
+
+/* road route via OSRM demo server, straight-line fallback */
+async function routeGeometry(coords){
+  const key=coords.map(c=>c.lat.toFixed(5)+','+c.lng.toFixed(5)).join(';');
+  if(routeCache[key])return routeCache[key];
+  try{
+    const path=coords.map(c=>c.lng+','+c.lat).join(';');
+    const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+path+'?overview=full&geometries=geojson');
+    const d=await r.json();
+    if(d.routes&&d.routes[0]){const line=d.routes[0].geometry.coordinates.map(p=>[p[1],p[0]]);routeCache[key]=line;return line;}
+  }catch(e){}
+  const straight=coords.map(c=>[c.lat,c.lng]);routeCache[key]=straight;return straight;
+}
+function stopIcon(color,txt,grey){return L.divIcon({className:'stop-pin'+(grey?' grey':''),html:`<div style="background:${color}">${txt}</div>`,iconSize:[24,24],iconAnchor:[12,12]});}
+function renderPlan(){
+  if(!liveMap||!planLayer)return;
+  planLayer.clearLayers();
+  const gen=++planGen;
+  const date=$('#liveDate').value;
+  const showRoutes=$('#showRoutes').checked, showStops=$('#showStops').checked, showUn=$('#showUnsched').checked;
+  const dep=depot();
+  if(dep&&(showRoutes||showStops)) L.marker([dep.lat,dep.lng],{icon:L.divIcon({className:'depot-sq',html:'<div></div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(planLayer).bindPopup('Depot');
+  drivers.forEach(dr=>{
+    const stops=deliveries.filter(d=>d.driver_id===dr.id&&d.scheduled_date===date&&d.status!=='unscheduled'&&d.lat!=null).sort((a,b)=>(a.seq??999)-(b.seq??999));
+    if(!stops.length)return;
+    if(showStops) stops.forEach((s,i)=>L.marker([+s.lat,+s.lng],{icon:stopIcon(dr.color,i+1)}).addTo(planLayer).bindPopup(`<b>${esc(s.job)}</b><br>${esc(s.address)}<br>${esc(dr.name)} · stop ${i+1}`));
+    if(showRoutes){
+      const coords=(dep?[dep]:[]).concat(stops.map(s=>({lat:+s.lat,lng:+s.lng})));
+      if(coords.length>=2) routeGeometry(coords).then(line=>{if(gen===planGen&&$('#showRoutes').checked)L.polyline(line,{color:dr.color,weight:4,opacity:.6}).addTo(planLayer);});
+    }
+  });
+  if(showUn) deliveries.filter(d=>d.status==='unscheduled'&&d.lat!=null).forEach(s=>L.marker([+s.lat,+s.lng],{icon:stopIcon('#8a97a3','•',true)}).addTo(planLayer).bindPopup(`<b>${esc(s.job)}</b><br>${esc(s.address)}<br>unscheduled`));
+}
+function applyLive(row){
+  if(!liveMap)return;
+  if(!driverMap[row.driver_id]){loadDrivers();}
+  const d=driverMap[row.driver_id]||{name:'Unknown',color:'#8a97a3'};const ll=[row.lat,row.lng];
+  const icon=L.divIcon({className:'pin',html:`<div style="background:${d.color}"><span>${(d.name||'?').replace(/[^0-9]/g,'').slice(0,2)||'•'}</span></div>`,iconSize:[30,30],iconAnchor:[15,28]});
+  if(markers[row.driver_id])markers[row.driver_id].setLatLng(ll).setIcon(icon);
+  else markers[row.driver_id]=L.marker(ll,{icon}).addTo(liveLayer).bindPopup(esc(d.name));
+  markers[row.driver_id].getPopup()&&markers[row.driver_id].setPopupContent(esc(d.name));
+  const tr=trails[row.driver_id]=trails[row.driver_id]||[];tr.push(ll);if(tr.length>40)tr.shift();
+  if(tr._line)liveLayer.removeLayer(tr._line);
+  if(tr.length>1){tr._line=L.polyline(tr,{color:d.color,weight:2,opacity:.4}).addTo(liveLayer);}
+}
+function ago(ts){const s=Math.max(0,Math.round((Date.now()-new Date(ts).getTime())/1000));if(s<10)return'just now';if(s<60)return s+'s ago';const m=Math.round(s/60);if(m<60)return m+'m ago';return Math.round(m/60)+'h ago';}
+function renderLiveList(){
+  const keys=Object.keys(positions);$('#liveEmpty').style.display=keys.length?'none':'block';
+  const list=$('#liveList');list.innerHTML='';
+  keys.map(id=>positions[id]).sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at)).forEach(row=>{
+    const d=driverMap[row.driver_id]||{name:'Unknown',color:'#8a97a3'};
+    const stale=(Date.now()-new Date(row.updated_at).getTime())>STALE_MS;
+    const mph=row.speed!=null?Math.round(row.speed*2.23694):null;
+    const el=document.createElement('div');el.className='drow'+(stale?' stale':'');
+    el.innerHTML=`<span class="dt" style="background:${d.color}"></span><div><div class="nm">${esc(d.name)}</div><div class="sub">${ago(row.updated_at)}${mph!=null?' · '+mph+' mph':''}${row.accuracy!=null?' · ±'+Math.round(row.accuracy)+'m':''}</div></div><span class="badge ${stale?'stale':'live'}">${stale?'idle':'live'}</span>`;
+    el.onclick=()=>{if(markers[row.driver_id]){liveMap.setView([row.lat,row.lng],15);markers[row.driver_id].openPopup();}};
+    list.appendChild(el);
+  });
+}
+function fitAll(){
+  const pts=Object.values(positions).map(r=>[r.lat,r.lng]);
+  const date=$('#liveDate')?$('#liveDate').value:todayStr();
+  deliveries.filter(d=>d.scheduled_date===date&&d.lat!=null).forEach(d=>pts.push([+d.lat,+d.lng]));
+  const dep=depot();if(dep)pts.push([dep.lat,dep.lng]);
+  if(pts.length&&liveMap)liveMap.fitBounds(pts,{padding:[50,50],maxZoom:14});
+}
+$('#fitAll').onclick=fitAll;
+$('#liveDate').onchange=()=>{renderPlan();fitAll();};
+['#showRoutes','#showStops','#showUnsched'].forEach(id=>$(id).onchange=renderPlan);
+setInterval(()=>{if($('#vMap').classList.contains('on'))renderLiveList();},10000);
+
+function showFatal(msg){
+  let bar=document.getElementById('fatalBar');
+  if(!bar){ bar=document.createElement('div'); bar.id='fatalBar';
+    bar.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#bd1d23;color:#fff;font:13px/1.5 monospace;padding:10px 14px;white-space:pre-wrap;max-height:40vh;overflow:auto';
+    document.body.appendChild(bar); }
+  bar.textContent='⚠ '+msg+'\n(hard-refresh after fixing: Ctrl+Shift+R)';
+}
+window.addEventListener('error',e=>{ showFatal((e.error&&e.error.message)||e.message||'Script error'); });
+window.addEventListener('unhandledrejection',e=>{ showFatal('Unhandled: '+((e.reason&&e.reason.message)||e.reason||'promise rejection')); });
+try{ boot(); }catch(e){ showFatal('boot() failed: '+((e&&e.message)||e)); }
+</script>
+</body>
+</html>
